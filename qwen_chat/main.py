@@ -1,3 +1,7 @@
+import os
+import subprocess
+import sys
+
 import requests
 
 
@@ -6,6 +10,22 @@ MODEL_NAME = "qwen3:14b"
 
 # Ollama's local API endpoint for generating text.
 OLLAMA_URL = "http://localhost:11434/api/generate"
+
+
+def start_monitor_window():
+    """
+    Open the GPU and memory monitor popup.
+
+    The monitor runs in a separate Python process, so the chat loop can keep
+    working normally in this terminal.
+    """
+    monitor_path = os.path.join(os.path.dirname(__file__), "monitor.py")
+
+    try:
+        subprocess.Popen([sys.executable, monitor_path])
+    except OSError as error:
+        print("Warning: Could not open the monitor window.")
+        print(f"Details: {error}\n")
 
 
 def ask_ollama(user_message):
@@ -70,6 +90,7 @@ def main():
     print("Welcome to the local Qwen chat assistant!")
     print(f"Using Ollama model: {MODEL_NAME}")
     print("Type exit, quit, or q to stop.\n")
+    start_monitor_window()
 
     while True:
         user_message = input("You: ").strip()

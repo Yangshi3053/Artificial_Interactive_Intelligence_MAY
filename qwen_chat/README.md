@@ -4,7 +4,9 @@ This is a beginner-friendly Python project for chatting with a local AI model in
 
 You type a message with your keyboard, the program sends it to Ollama, and the AI response is printed back in the terminal.
 
-The project uses the local Ollama model:
+The project also includes a small popup monitor window that shows GPU and memory usage while the model is running.
+
+The default local Ollama model is:
 
 ```text
 qwen3:14b
@@ -14,18 +16,20 @@ qwen3:14b
 
 ```text
 qwen_chat/
-├── main.py
-├── requirements.txt
-└── README.md
+|-- main.py
+|-- monitor.py
+|-- requirements.txt
+`-- README.md
 ```
 
 ### main.py
 
-This is the main Python program.
+This is the main chat program.
 
 It does these things:
 
 - shows a welcome message
+- opens the GPU and memory monitor popup
 - asks you to type a message
 - sends your message to Ollama
 - uses the model `qwen3:14b`
@@ -41,17 +45,49 @@ MODEL_NAME = "qwen3:14b"
 
 If you want to use a different Ollama model later, change that value.
 
+### monitor.py
+
+This is the resource monitor popup program.
+
+It opens a window and checks your computer once every second.
+
+It draws three lines over time:
+
+- red line: GPU usage
+- blue line: GPU memory usage
+- green line: normal system RAM usage
+
+The monitor uses:
+
+- `tkinter` to create the popup window
+- `psutil` to read system RAM usage
+- `nvidia-ml-py` to read NVIDIA GPU usage
+
+You can run this monitor by itself:
+
+```bash
+python monitor.py
+```
+
+When you run `main.py`, the monitor opens automatically.
+
 ### requirements.txt
 
-This file lists the Python package needed by the project.
+This file lists the Python packages needed by the project.
 
 The project uses:
 
 ```text
 requests
+psutil
+nvidia-ml-py
 ```
 
-The `requests` package lets Python call Ollama's local HTTP API.
+`requests` lets Python call Ollama's local HTTP API.
+
+`psutil` reads your computer's memory usage.
+
+`nvidia-ml-py` reads NVIDIA GPU usage and GPU memory usage.
 
 ### README.md
 
@@ -63,13 +99,14 @@ Before running this project, you need:
 
 - Python installed
 - Ollama installed
+- an NVIDIA GPU if you want GPU usage monitoring
 - the Qwen3 14B model downloaded in Ollama
 
 ## Setup
 
-Open a terminal in the project folder.
+Open a terminal in the `qwen_chat` folder.
 
-Install the Python dependency:
+Install the Python dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -97,7 +134,10 @@ From inside the `qwen_chat` folder, run:
 python main.py
 ```
 
-You should see a welcome message.
+You should see:
+
+- a welcome message in the terminal
+- a popup window showing GPU and memory usage
 
 Then type a message, for example:
 
@@ -117,7 +157,9 @@ quit
 q
 ```
 
-## How It Works
+You can close the monitor window by clicking the window close button.
+
+## How the Chat Works
 
 The Python program sends a request to this local Ollama API endpoint:
 
@@ -135,13 +177,21 @@ It sends data like this:
 }
 ```
 
-The setting `stream=False` keeps the code simple because Ollama returns one complete response.
+The setting `stream=False` keeps the chat code simple because Ollama returns one complete response.
+
+## How the Monitor Works
+
+The monitor checks your computer every second.
+
+It stores the latest 120 seconds of data and redraws the chart.
+
+The chart uses percentages from 0 to 100, so GPU usage, GPU memory, and system RAM can be shown together.
 
 ## Common Problems
 
 ### Ollama is not running
 
-If Ollama is not running, the program will show a connection error.
+If Ollama is not running, the chat program will show a connection error.
 
 Start Ollama and try again.
 
@@ -151,6 +201,16 @@ If the model is missing, run:
 
 ```bash
 ollama pull qwen3:14b
+```
+
+### The monitor does not show GPU data
+
+The GPU monitor needs an NVIDIA GPU and the `nvidia-ml-py` package.
+
+Install the packages again:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ### The first response is slow
@@ -167,8 +227,7 @@ It does not include:
 
 - voice input
 - text-to-speech
-- a graphical interface
+- a graphical interface for chatting
 - screen capture
 - computer control
 - complicated project architecture
-
