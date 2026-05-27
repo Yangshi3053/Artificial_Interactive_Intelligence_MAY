@@ -1,5 +1,6 @@
 from model.qwen_model import MODEL_NAME, is_successful_response, stream_ollama_response
 from monitor.resource_monitor import start_monitor_window, stop_monitor_window
+from knowledge_base.index_documents import build_index
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
     print("Welcome to the local Qwen chat assistant!")
     print(f"Using Ollama model: {MODEL_NAME}")
     print("Type exit, quit, or q to stop.\n")
+    print("Type reindex to reread files in knowledge_base/documents.\n")
 
     monitor_process = start_monitor_window()
     conversation_history = []
@@ -25,6 +27,11 @@ def main():
             if user_message.lower() in ["exit", "quit", "q"]:
                 print("Goodbye!")
                 break
+
+            if user_message.lower() in ["reindex", "/reindex"]:
+                chunk_count = build_index()
+                print(f"Knowledge base reindexed: {chunk_count} text chunks.\n")
+                continue
 
             if not user_message:
                 print("Please type a message before pressing Enter.\n")

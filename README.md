@@ -43,6 +43,7 @@ It does these things:
 - searches the local knowledge base before answering
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
+- lets you type `reindex` to reread local knowledge files
 
 Run the project from this file:
 
@@ -270,6 +271,16 @@ python knowledge_base/index_documents.py
 The current search method is simple keyword search. It is fast and easy to debug, but it is not as smart as vector search yet.
 
 If you add new files, edit files, or delete files, run the indexing command again.
+
+You can also rebuild the index while chatting by typing:
+
+```text
+reindex
+```
+
+The assistant only knows files that are currently saved in `knowledge_base/index.json`.
+
+If the assistant describes files that are not actually in the index, that is model guessing. The prompt now tells it not to invent file names, purposes, or contents.
 
 ## Common Problems
 

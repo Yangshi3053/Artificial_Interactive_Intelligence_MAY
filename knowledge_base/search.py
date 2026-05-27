@@ -20,6 +20,20 @@ def load_index():
         return []
 
 
+def list_indexed_sources():
+    """Return the exact file names currently stored in the local index."""
+    documents = load_index()
+    sources = []
+
+    for document in documents:
+        source = document.get("source", "")
+
+        if source and source not in sources:
+            sources.append(source)
+
+    return sources
+
+
 def get_keywords(question):
     """
     Extract simple search keywords from the user's question.
@@ -65,6 +79,21 @@ def search_knowledge_base(question):
     scored_results.sort(key=lambda item: item[0], reverse=True)
 
     return [document for score, document in scored_results[:MAX_SEARCH_RESULTS]]
+
+
+def format_indexed_sources():
+    """Format the exact indexed file list for the model prompt."""
+    sources = list_indexed_sources()
+
+    if not sources:
+        return "No files are currently indexed."
+
+    lines = []
+
+    for source in sources:
+        lines.append(f"- {source}")
+
+    return "\n".join(lines)
 
 
 def format_search_results(results):
