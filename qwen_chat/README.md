@@ -176,6 +176,8 @@ q
 
 You can close the monitor window by clicking the window close button.
 
+When you exit the chat program by typing `exit`, `quit`, or `q`, the monitor window also closes automatically.
+
 ## How the Chat Works
 
 The Python program sends a request to this local Ollama API endpoint:

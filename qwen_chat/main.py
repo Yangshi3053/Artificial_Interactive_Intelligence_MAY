@@ -31,10 +31,30 @@ def start_monitor_window():
     monitor_path = os.path.join(os.path.dirname(__file__), "monitor.py")
 
     try:
-        subprocess.Popen([sys.executable, monitor_path])
+        return subprocess.Popen([sys.executable, monitor_path])
     except OSError as error:
         print("Warning: Could not open the monitor window.")
         print(f"Details: {error}\n")
+        return None
+
+
+def stop_monitor_window(monitor_process):
+    """
+    Close the monitor popup when the chat program exits.
+
+    The monitor runs as a separate process, so we need to stop it ourselves.
+    """
+    if monitor_process is None:
+        return
+
+    # poll() returns None while the process is still running.
+    if monitor_process.poll() is None:
+        monitor_process.terminate()
+
+        try:
+            monitor_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            monitor_process.kill()
 
 
 def build_prompt(conversation_history, user_message):
@@ -149,28 +169,31 @@ def main():
     print("Welcome to the local Qwen chat assistant!")
     print(f"Using Ollama model: {MODEL_NAME}")
     print("Type exit, quit, or q to stop.\n")
-    start_monitor_window()
+    monitor_process = start_monitor_window()
 
     conversation_history = []
 
-    while True:
-        user_message = input("You: ").strip()
+    try:
+        while True:
+            user_message = input("You: ").strip()
 
-        if user_message.lower() in ["exit", "quit", "q"]:
-            print("Goodbye!")
-            break
+            if user_message.lower() in ["exit", "quit", "q"]:
+                print("Goodbye!")
+                break
 
-        if not user_message:
-            print("Please type a message before pressing Enter.\n")
-            continue
+            if not user_message:
+                print("Please type a message before pressing Enter.\n")
+                continue
 
-        print("AI: ", end="", flush=True)
-        ai_response = print_ollama_response(conversation_history, user_message)
-        print("\n")
+            print("AI: ", end="", flush=True)
+            ai_response = print_ollama_response(conversation_history, user_message)
+            print("\n")
 
-        if ai_response:
-            conversation_history.append(f"User: {user_message}")
-            conversation_history.append(f"AI: {ai_response}")
+            if ai_response:
+                conversation_history.append(f"User: {user_message}")
+                conversation_history.append(f"AI: {ai_response}")
+    finally:
+        stop_monitor_window(monitor_process)
 
 
 if __name__ == "__main__":
