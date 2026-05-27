@@ -2,6 +2,8 @@ import json
 
 import requests
 
+from knowledge_base.search import format_search_results, search_knowledge_base
+
 
 # You can change this model name later if you want to use a different model.
 MODEL_NAME = "qwen3:14b"
@@ -18,7 +20,7 @@ MAX_RESPONSE_TOKENS = 4096
 MAX_HISTORY_CHARACTERS = 12000
 
 
-def build_prompt(conversation_history, user_message):
+def build_prompt(conversation_history, user_message, knowledge_text):
     """
     Build one prompt that includes the recent chat history.
 
@@ -34,6 +36,9 @@ def build_prompt(conversation_history, user_message):
     return (
         "You are a helpful local AI assistant.\n"
         "Use the conversation history to understand follow-up questions.\n\n"
+        "Use the local knowledge base when it is relevant.\n"
+        "If the knowledge base is empty or not relevant, answer normally.\n\n"
+        f"Local knowledge base results:\n{knowledge_text}\n\n"
         f"Conversation history:\n{history_text}\n\n"
         f"User: {user_message}\n"
         "AI:"
@@ -47,7 +52,9 @@ def stream_ollama_response(conversation_history, user_message):
     The main program prints each piece immediately. This keeps model logic here
     while keeping terminal input and output in main.py.
     """
-    prompt = build_prompt(conversation_history, user_message)
+    search_results = search_knowledge_base(user_message)
+    knowledge_text = format_search_results(search_results)
+    prompt = build_prompt(conversation_history, user_message, knowledge_text)
 
     request_data = {
         "model": MODEL_NAME,

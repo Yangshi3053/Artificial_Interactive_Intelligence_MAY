@@ -1,0 +1,12 @@
+[
+  {
+    "source": "knowledge_base\\documents\\example_note.md",
+    "chunk": 1,
+    "text": "# Example Local Note This is an example document in the local knowledge base. The assistant can search this folder before answering questions. You can replace this file with your own notes, class materials, project documents, or reference text. After changing documents, run: ```bash python knowledge_base/index_documents.py ```"
+  },
+  {
+    "source": "knowledge_base\\documents\\README.md",
+    "chunk": 1,
+    "text": "# Local Knowledge Base Documents Put your local reference files in this folder. The first version supports: - `.txt` - `.md` After adding or editing files, rebuild the index from the project root: ```bash python knowledge_base/index_documents.py ```"
+  }
+]
