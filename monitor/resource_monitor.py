@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import time
 import tkinter as tk
 
@@ -18,6 +21,42 @@ UPDATE_INTERVAL_MS = 1000
 
 # How many seconds of history to show on the chart.
 MAX_HISTORY_SECONDS = 120
+
+
+def start_monitor_window():
+    """
+    Open the GPU and memory monitor popup.
+
+    The monitor runs in a separate Python process, so the chat loop can keep
+    working normally in the terminal.
+    """
+    monitor_path = os.path.abspath(__file__)
+
+    try:
+        return subprocess.Popen([sys.executable, monitor_path])
+    except OSError as error:
+        print("Warning: Could not open the monitor window.")
+        print(f"Details: {error}\n")
+        return None
+
+
+def stop_monitor_window(monitor_process):
+    """
+    Close the monitor popup when the chat program exits.
+
+    The monitor runs as a separate process, so we need to stop it ourselves.
+    """
+    if monitor_process is None:
+        return
+
+    # poll() returns None while the process is still running.
+    if monitor_process.poll() is None:
+        monitor_process.terminate()
+
+        try:
+            monitor_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            monitor_process.kill()
 
 
 class ResourceMonitor:
