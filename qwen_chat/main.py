@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -10,6 +11,9 @@ MODEL_NAME = "qwen3:14b"
 
 # Ollama's local API endpoint for generating text.
 OLLAMA_URL = "http://localhost:11434/api/generate"
+
+# Higher numbers allow longer answers. Lower numbers make answers stop sooner.
+MAX_RESPONSE_TOKENS = 4096
 
 
 def start_monitor_window():
@@ -28,57 +32,78 @@ def start_monitor_window():
         print(f"Details: {error}\n")
 
 
-def ask_ollama(user_message):
+def print_ollama_response(user_message):
     """
-    Send the user's message to Ollama and return the AI's response.
+    Send the user's message to Ollama and print the response as it arrives.
 
-    This function uses stream=False so Ollama sends one complete response
-    instead of sending small pieces one by one.
+    stream=True means the user can see the answer while the model is writing.
+    This feels much faster than waiting for the whole answer to finish first.
     """
     request_data = {
         "model": MODEL_NAME,
         "prompt": user_message,
-        "stream": False,
+        "stream": True,
+        "options": {
+            "num_predict": MAX_RESPONSE_TOKENS,
+        },
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=request_data, timeout=120)
+        response = requests.post(
+            OLLAMA_URL,
+            json=request_data,
+            stream=True,
+            timeout=(10, 300),
+        )
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
-        return (
+        print(
             "Error: Could not connect to Ollama.\n"
             "Please make sure Ollama is installed and running."
         )
+        return
     except requests.exceptions.Timeout:
-        return (
+        print(
             "Error: Ollama took too long to respond.\n"
             "The model may still be loading. Please try again."
         )
+        return
     except requests.exceptions.HTTPError as error:
-        return (
+        print(
             "Error: Ollama returned an HTTP error.\n"
             f"Details: {error}"
         )
+        return
     except requests.exceptions.RequestException as error:
-        return (
+        print(
             "Error: Something went wrong while talking to Ollama.\n"
             f"Details: {error}"
         )
+        return
 
-    try:
-        data = response.json()
-    except ValueError:
-        return "Error: Ollama returned a response that was not valid JSON."
+    for line in response.iter_lines():
+        if not line:
+            continue
 
-    # If the model is not installed, Ollama usually sends an error message here.
-    if "error" in data:
-        return (
-            "Error: Ollama could not generate a response.\n"
-            f"Details: {data['error']}\n"
-            f"Tip: Try running this command first: ollama pull {MODEL_NAME}"
-        )
+        try:
+            data = line.decode("utf-8")
+            json_data = json.loads(data)
+        except ValueError:
+            print("\nError: Ollama returned a response that was not valid JSON.")
+            return
 
-    return data.get("response", "Error: No response text was returned by Ollama.")
+        # If the model is not installed, Ollama usually sends an error here.
+        if "error" in json_data:
+            print("\nError: Ollama could not generate a response.")
+            print(f"Details: {json_data['error']}")
+            print(f"Tip: Try running this command first: ollama pull {MODEL_NAME}")
+            return
+
+        text_piece = json_data.get("response", "")
+        print(text_piece, end="", flush=True)
+
+        if json_data.get("done", False):
+            break
 
 
 def main():
@@ -103,9 +128,9 @@ def main():
             print("Please type a message before pressing Enter.\n")
             continue
 
-        print("AI is thinking...\n")
-        ai_response = ask_ollama(user_message)
-        print(f"AI: {ai_response}\n")
+        print("AI: ", end="", flush=True)
+        print_ollama_response(user_message)
+        print("\n")
 
 
 if __name__ == "__main__":

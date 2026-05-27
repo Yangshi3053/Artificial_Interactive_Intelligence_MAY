@@ -33,7 +33,7 @@ It does these things:
 - asks you to type a message
 - sends your message to Ollama
 - uses the model `qwen3:14b`
-- prints the AI response in the terminal
+- prints the AI response in the terminal while it is being generated
 - keeps chatting until you type `exit`, `quit`, or `q`
 - shows friendly error messages if Ollama is not running or the model is not available
 
@@ -44,6 +44,14 @@ MODEL_NAME = "qwen3:14b"
 ```
 
 If you want to use a different Ollama model later, change that value.
+
+Long answers are controlled by this value:
+
+```python
+MAX_RESPONSE_TOKENS = 4096
+```
+
+Higher numbers allow longer answers. Lower numbers make answers stop sooner.
 
 ### monitor.py
 
@@ -173,11 +181,18 @@ It sends data like this:
 {
     "model": "qwen3:14b",
     "prompt": "your message here",
-    "stream": False
+    "stream": True,
+    "options": {
+        "num_predict": 4096
+    }
 }
 ```
 
-The setting `stream=False` keeps the chat code simple because Ollama returns one complete response.
+The setting `stream=True` lets the program print text while the model is still generating.
+
+This makes long answers feel much faster because you do not have to wait for the whole answer to finish before seeing anything.
+
+The `num_predict` option allows longer answers. It does not force the model to write for an exact number of seconds, but it helps prevent long writing tasks from stopping too early.
 
 ## How the Monitor Works
 
