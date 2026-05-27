@@ -33,6 +33,7 @@ It does these things:
 - asks you to type a message
 - sends your message to Ollama
 - uses the model `qwen3:14b`
+- keeps recent conversation history so follow-up questions work better
 - prints the AI response in the terminal while it is being generated
 - keeps chatting until you type `exit`, `quit`, or `q`
 - shows friendly error messages if Ollama is not running or the model is not available
@@ -52,6 +53,14 @@ MAX_RESPONSE_TOKENS = 4096
 ```
 
 Higher numbers allow longer answers. Lower numbers make answers stop sooner.
+
+The amount of recent chat history is controlled by this value:
+
+```python
+MAX_HISTORY_CHARACTERS = 12000
+```
+
+This helps the assistant remember recent messages without making every request too large.
 
 ### monitor.py
 
@@ -193,6 +202,24 @@ The setting `stream=True` lets the program print text while the model is still g
 This makes long answers feel much faster because you do not have to wait for the whole answer to finish before seeing anything.
 
 The `num_predict` option allows longer answers. It does not force the model to write for an exact number of seconds, but it helps prevent long writing tasks from stopping too early.
+
+## How Conversation Memory Works
+
+The Ollama `/api/generate` endpoint does not automatically remember earlier messages from this Python program.
+
+To make follow-up questions work, `main.py` stores recent messages in a simple Python list.
+
+Before sending your new message to Ollama, the program adds the recent conversation history to the prompt.
+
+This means you can ask things like:
+
+```text
+Summarize what you wrote before.
+```
+
+The assistant will have the recent text available.
+
+Long histories can make the model slower, so the project keeps only the most recent part of the conversation.
 
 ## How the Monitor Works
 

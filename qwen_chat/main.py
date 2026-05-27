@@ -15,6 +15,11 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 # Higher numbers allow longer answers. Lower numbers make answers stop sooner.
 MAX_RESPONSE_TOKENS = 4096
 
+# Keep recent conversation text so the model can remember earlier messages.
+# A very large history can slow the model down, so this project keeps it simple
+# and trims old text when the conversation gets too long.
+MAX_HISTORY_CHARACTERS = 12000
+
 
 def start_monitor_window():
     """
@@ -32,16 +37,40 @@ def start_monitor_window():
         print(f"Details: {error}\n")
 
 
-def print_ollama_response(user_message):
+def build_prompt(conversation_history, user_message):
+    """
+    Build one prompt that includes the recent chat history.
+
+    Ollama's /api/generate endpoint does not automatically remember earlier
+    messages for us. We include the recent history in the prompt so the model
+    can answer questions like "summarize what you wrote before".
+    """
+    history_text = "\n".join(conversation_history)
+
+    if len(history_text) > MAX_HISTORY_CHARACTERS:
+        history_text = history_text[-MAX_HISTORY_CHARACTERS:]
+
+    return (
+        "You are a helpful local AI assistant.\n"
+        "Use the conversation history to understand follow-up questions.\n\n"
+        f"Conversation history:\n{history_text}\n\n"
+        f"User: {user_message}\n"
+        "AI:"
+    )
+
+
+def print_ollama_response(conversation_history, user_message):
     """
     Send the user's message to Ollama and print the response as it arrives.
 
     stream=True means the user can see the answer while the model is writing.
     This feels much faster than waiting for the whole answer to finish first.
     """
+    prompt = build_prompt(conversation_history, user_message)
+
     request_data = {
         "model": MODEL_NAME,
-        "prompt": user_message,
+        "prompt": prompt,
         "stream": True,
         "options": {
             "num_predict": MAX_RESPONSE_TOKENS,
@@ -81,6 +110,8 @@ def print_ollama_response(user_message):
         )
         return
 
+    full_response = ""
+
     for line in response.iter_lines():
         if not line:
             continue
@@ -100,10 +131,13 @@ def print_ollama_response(user_message):
             return
 
         text_piece = json_data.get("response", "")
+        full_response += text_piece
         print(text_piece, end="", flush=True)
 
         if json_data.get("done", False):
             break
+
+    return full_response.strip()
 
 
 def main():
@@ -117,6 +151,8 @@ def main():
     print("Type exit, quit, or q to stop.\n")
     start_monitor_window()
 
+    conversation_history = []
+
     while True:
         user_message = input("You: ").strip()
 
@@ -129,8 +165,12 @@ def main():
             continue
 
         print("AI: ", end="", flush=True)
-        print_ollama_response(user_message)
+        ai_response = print_ollama_response(conversation_history, user_message)
         print("\n")
+
+        if ai_response:
+            conversation_history.append(f"User: {user_message}")
+            conversation_history.append(f"AI: {ai_response}")
 
 
 if __name__ == "__main__":
