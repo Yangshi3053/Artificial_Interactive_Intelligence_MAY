@@ -9,6 +9,8 @@ You type text in the terminal. The program sends your message to Ollama, streams
 ```text
 Artificial_Interactive_Intelligence_MAY/
 |-- main.py
+|-- assistant_engine.py
+|-- app_config.py
 |-- requirements.txt
 |-- README.md
 |-- knowledge_base/
@@ -30,6 +32,9 @@ Artificial_Interactive_Intelligence_MAY/
 |-- online_search/
 |   |-- __init__.py
 |   `-- web_search.py
+|-- utils/
+|   |-- __init__.py
+|   `-- debug.py
 `-- monitor/
     |-- __init__.py
     `-- resource_monitor.py
@@ -41,7 +46,21 @@ Artificial_Interactive_Intelligence_MAY/
 
 This is the program entry point.
 
-It is kept small so it is easy to debug.
+It is intentionally tiny so startup problems are easy to debug.
+
+It does these things:
+
+- starts `AssistantEngine`
+
+Run the project from this file:
+
+```bash
+python main.py
+```
+
+### assistant_engine.py
+
+This file coordinates the main assistant workflow.
 
 It does these things:
 
@@ -63,29 +82,20 @@ It does these things:
 - lets you type `memory` to see long-term memory status
 - lets you type `system` to see local system context
 
-Run the project from this file:
+If the terminal loop, built-in commands, monitor startup, or memory saving are acting strangely, start debugging here.
 
-```bash
-python main.py
-```
+### app_config.py
 
-### model/qwen_model.py
+This file stores the main settings in one place.
 
-This file contains the model-related code.
+It contains:
 
-It does these things:
-
-- stores the model name
-- builds the prompt sent to Ollama
-- keeps the recent chat history inside the prompt
-- adds relevant long-term memory to the prompt
-- adds relevant local knowledge base results to the prompt
-- adds web search results to the prompt when needed
-- tells the model the real local runtime status so it does not claim cloud API limits
-- adds local system context for date, time, timezone, region, and approximate location
-- calls Ollama's local HTTP API
-- streams text pieces back to `main.py`
-- handles Ollama connection errors and model errors
+- Ollama model name
+- Ollama API URL
+- answer length settings
+- short-term history size
+- built-in terminal commands
+- debug mode switch
 
 The default model is:
 
@@ -117,7 +127,37 @@ The local Ollama context setting is recorded as:
 OLLAMA_CONTEXT_TOKENS = 32768
 ```
 
-This is project runtime information, not the Alibaba Cloud Qwen API limit.
+### model/qwen_model.py
+
+This file contains the model-related code.
+
+It does these things:
+
+- builds the prompt sent to Ollama
+- keeps the recent chat history inside the prompt
+- adds relevant long-term memory to the prompt
+- adds relevant local knowledge base results to the prompt
+- adds web search results to the prompt when needed
+- tells the model the real local runtime status so it does not claim cloud API limits
+- adds local system context for date, time, timezone, region, and approximate location
+- calls Ollama's local HTTP API
+- streams text pieces back to `assistant_engine.py`
+- handles Ollama connection errors and model errors
+
+The settings it uses come from `app_config.py`.
+
+### utils/debug.py
+
+This file contains a small debug logger.
+
+To print debug messages while running the assistant in PowerShell:
+
+```powershell
+$env:LOCAL_AI_DEBUG='1'
+python main.py
+```
+
+Debug mode prints simple progress messages such as memory lookup, web lookup, and memory saving.
 
 ### system_context/local_info.py
 
@@ -453,7 +493,7 @@ Ollama's `/api/generate` endpoint does not automatically remember previous messa
 
 This project uses two kinds of memory.
 
-Short-term memory is a simple list of recent conversation turns in `main.py`.
+Short-term memory is a simple list of recent conversation turns in `assistant_engine.py`.
 
 Before each request, `model/qwen_model.py` adds that history to the prompt so the model can answer follow-up questions.
 

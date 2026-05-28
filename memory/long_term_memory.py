@@ -18,13 +18,13 @@ MEMORY_QUESTION_KEYWORDS = [
     "prefer",
     "profile",
     "about me",
-    "记忆",
-    "记得",
-    "偏好",
-    "喜好",
-    "关于我",
-    "我的信息",
-    "我的要求",
+    "\u8bb0\u5fc6",
+    "\u8bb0\u5f97",
+    "\u504f\u597d",
+    "\u559c\u597d",
+    "\u5173\u4e8e\u6211",
+    "\u6211\u7684\u4fe1\u606f",
+    "\u6211\u7684\u8981\u6c42",
 ]
 
 TOPIC_KEYWORDS = {
@@ -36,10 +36,11 @@ TOPIC_KEYWORDS = {
         "debug",
         "git",
         "github",
-        "代码",
-        "编程",
-        "调试",
-        "项目",
+        "\u4ee3\u7801",
+        "\u7f16\u7a0b",
+        "\u8c03\u8bd5",
+        "\u9879\u76ee",
+        "\u7a0b\u5e8f",
     ],
     "local_ai": [
         "ollama",
@@ -50,10 +51,11 @@ TOPIC_KEYWORDS = {
         "memory",
         "gpu",
         "ai",
-        "模型",
-        "知识库",
-        "长期记忆",
-        "联网",
+        "\u6a21\u578b",
+        "\u77e5\u8bc6\u5e93",
+        "\u957f\u671f\u8bb0\u5fc6",
+        "\u8054\u7f51",
+        "\u672c\u5730",
     ],
     "preference": [
         "prefer",
@@ -61,20 +63,21 @@ TOPIC_KEYWORDS = {
         "like",
         "want",
         "from now on",
-        "偏好",
-        "喜欢",
-        "希望",
-        "以后",
-        "不用",
-        "不要",
-        "最优解",
+        "\u504f\u597d",
+        "\u559c\u6b22",
+        "\u5e0c\u671b",
+        "\u4ee5\u540e",
+        "\u4e0b\u6b21",
+        "\u4e0d\u7528",
+        "\u4e0d\u8981",
+        "\u6700\u4f18\u89e3",
     ],
     "identity": [
         "my name",
         "i am",
-        "我叫",
-        "我的名字",
-        "我是",
+        "\u6211\u53eb",
+        "\u6211\u7684\u540d\u5b57",
+        "\u6211\u662f",
     ],
     "school": [
         "class",
@@ -82,11 +85,48 @@ TOPIC_KEYWORDS = {
         "assignment",
         "college",
         "school",
-        "课程",
-        "作业",
-        "学校",
+        "\u8bfe\u7a0b",
+        "\u4f5c\u4e1a",
+        "\u5b66\u6821",
     ],
 }
+
+STRONG_MEMORY_MARKERS = [
+    "remember",
+    "from now on",
+    "always",
+    "never",
+    "\u8bb0\u4f4f",
+    "\u4ee5\u540e",
+    "\u603b\u662f",
+    "\u6c38\u8fdc",
+    "\u4e0d\u8981",
+    "\u4e0d\u7528",
+    "\u6700\u4f18\u89e3",
+]
+
+DURABLE_PATTERNS = [
+    "remember",
+    "i prefer",
+    "i like",
+    "i want",
+    "from now on",
+    "\u8bb0\u4f4f",
+    "\u4ee5\u540e",
+    "\u4e0b\u6b21",
+    "\u4e0d\u7528",
+    "\u4e0d\u8981",
+    "\u6211\u5e0c\u671b",
+    "\u6211\u60f3\u8981",
+    "\u6700\u4f18\u89e3",
+]
+
+IDENTITY_PATTERNS = [
+    "\u6211\u53eb[^\uff0c\u3002,.!?]+",
+    "\u6211\u7684\u540d\u5b57\u662f[^\uff0c\u3002,.!?]+",
+    "my name is [^,.!?]+",
+    "i am [^,.!?]+",
+]
 
 
 def get_connection():
@@ -237,21 +277,7 @@ def estimate_importance(kind, content):
     if kind == "preference":
         return 0.85
 
-    strong_markers = [
-        "remember",
-        "from now on",
-        "always",
-        "never",
-        "记住",
-        "以后",
-        "总是",
-        "永远",
-        "不要",
-        "不用",
-        "最优解",
-    ]
-
-    if any(marker in lower_content for marker in strong_markers):
+    if any(marker in lower_content for marker in STRONG_MEMORY_MARKERS):
         return 0.9
 
     return 0.55
@@ -312,39 +338,16 @@ def save_memory(kind, content, topic=None, importance=None, confidence=None):
 
 def extract_memory_candidates(user_message, ai_response):
     """
-    Extract long-term memory candidates from the user's message.
+    Extract durable memory candidates from one user message.
 
-    This is conservative: it remembers explicit preferences, identity facts,
-    and durable instructions instead of storing every casual sentence as a
-    permanent high-priority fact.
+    This intentionally stores explicit preferences, durable instructions, and
+    identity facts instead of turning every casual sentence into memory.
     """
     candidates = []
     text = user_message.strip()
     lower_text = text.lower()
 
-    durable_patterns = [
-        "remember",
-        "记住",
-        "以后",
-        "下次",
-        "不用",
-        "不要",
-        "我希望",
-        "我想要",
-        "i prefer",
-        "i like",
-        "i want",
-        "from now on",
-    ]
-
-    identity_patterns = [
-        r"我叫[^，。,.!?]+",
-        r"我的名字是[^，。,.!?]+",
-        r"my name is [^,.!?]+",
-        r"i am [^,.!?]+",
-    ]
-
-    for pattern in identity_patterns:
+    for pattern in IDENTITY_PATTERNS:
         match = re.search(pattern, text, flags=re.IGNORECASE)
 
         if match:
@@ -358,7 +361,7 @@ def extract_memory_candidates(user_message, ai_response):
                 }
             )
 
-    if any(pattern in lower_text for pattern in durable_patterns):
+    if any(pattern in lower_text for pattern in DURABLE_PATTERNS):
         candidates.append(
             {
                 "kind": "preference",
@@ -369,7 +372,7 @@ def extract_memory_candidates(user_message, ai_response):
             }
         )
 
-    if "最优解" in text or "best solution" in lower_text:
+    if "\u6700\u4f18\u89e3" in text or "best solution" in lower_text:
         candidates.append(
             {
                 "kind": "preference",

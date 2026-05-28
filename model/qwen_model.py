@@ -2,6 +2,13 @@ import json
 
 import requests
 
+from app_config import (
+    MAX_HISTORY_CHARACTERS,
+    MAX_RESPONSE_TOKENS,
+    MODEL_NAME,
+    OLLAMA_CONTEXT_TOKENS,
+    OLLAMA_URL,
+)
 from knowledge_base.search import (
     format_indexed_sources,
     format_search_results,
@@ -16,26 +23,6 @@ from system_context.local_info import (
     format_local_system_context,
     get_local_system_context,
 )
-
-
-# You can change this model name later if you want to use a different model.
-MODEL_NAME = "qwen3:14b"
-
-# Ollama's local API endpoint for generating text.
-OLLAMA_URL = "http://localhost:11434/api/generate"
-
-# Higher numbers allow longer answers. Lower numbers make answers stop sooner.
-MAX_RESPONSE_TOKENS = 4096
-
-# Keep recent conversation text so the model can remember earlier messages.
-# A very large history can slow the model down, so this project keeps it simple
-# and trims old text when the conversation gets too long.
-MAX_HISTORY_CHARACTERS = 12000
-
-# Ollama showed this model running with a 32768-token context window on this
-# machine. Keep it as a visible project setting so the assistant does not invent
-# unrelated cloud-model limits.
-OLLAMA_CONTEXT_TOKENS = 32768
 
 
 def get_assistant_status_text():
