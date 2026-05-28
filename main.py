@@ -9,7 +9,11 @@ from memory.long_term_memory import (
     save_message,
     search_long_term_memory,
 )
-from online_search.web_search import format_web_status, get_web_context
+from online_search.web_search import (
+    format_query_variants,
+    format_web_status,
+    get_web_context,
+)
 
 
 def main():
@@ -78,9 +82,16 @@ def main():
 
             print(format_web_status(raw_web_context))
 
+            if raw_web_context["query_variants"]:
+                print("Search queries:")
+                print(format_query_variants(raw_web_context["query_variants"]))
+
             if raw_web_context["sources"]:
                 for index, source in enumerate(raw_web_context["sources"], start=1):
-                    print(f"[{index}] {source['title']} - {source['url']}")
+                    print(
+                        f"[{index}] Tier {source['tier']} "
+                        f"({source['tier_reason']}), {source['title']} - {source['url']}"
+                    )
 
             print("AI: ", end="", flush=True)
 

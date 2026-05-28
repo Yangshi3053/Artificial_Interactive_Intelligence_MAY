@@ -51,6 +51,8 @@ It does these things:
 - searches the local knowledge base before answering
 - searches the web when the question needs current information
 - prints whether web search was used before the AI answer
+- ranks web sources with a 1-5 source quality tier system
+- searches in locally relevant languages when useful
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
 - lets you type `reindex` to reread local knowledge files
@@ -194,7 +196,9 @@ This file contains the simple web search tool.
 It does these things:
 
 - decides whether a question probably needs live web information
+- builds multilingual search queries for country-specific questions
 - searches the web for current information
+- ranks sources by quality tier before choosing excerpts
 - reads text from the top pages
 - sends source links and excerpts to the model
 
@@ -339,6 +343,8 @@ Web search: used, 3 source(s)
 
 When web search is used, the terminal also prints the source titles and URLs.
 
+The terminal also prints the query plan. For example, if you ask in Chinese about Canadian gas prices, the program can search English and French queries because those are more likely to find official Canadian sources.
+
 Examples that trigger web search:
 
 ```text
@@ -351,10 +357,33 @@ web: current NVIDIA driver
 The model receives:
 
 - source links
+- source quality tiers
+- multilingual query plan
 - short webpage excerpts
 - your original question
 
 When it uses web information, it should mention source numbers like `[1]` or `[2]`.
+
+Source quality tiers:
+
+```text
+Tier 1: official sources
+Government websites, company websites, official docs, product manuals, official GitHub, official announcements
+
+Tier 2: authoritative institutions and professional databases
+EIA, IEA, Trading Economics, Bank of Canada, ST, NVIDIA, Raspberry Pi official docs
+
+Tier 3: mainstream or professional media
+Reuters, AP, BBC, CBC, CNBC, Bloomberg, The Verge, Tom's Hardware
+
+Tier 4: blogs, forums, personal websites, tutorial sites
+Useful as reference, but not as the only evidence
+
+Tier 5: unclear sources or repost sites
+Avoid when possible
+```
+
+The model is instructed not to invent data. If a number is not visible in the searched excerpts, it should say the excerpts do not provide that number.
 
 If there is no internet connection or the web page blocks reading, the assistant will say live web information was not available.
 

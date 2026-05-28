@@ -7,7 +7,11 @@ from knowledge_base.search import (
     format_search_results,
     search_knowledge_base,
 )
-from online_search.web_search import format_web_sources, get_web_context
+from online_search.web_search import (
+    format_query_variants,
+    format_web_sources,
+    get_web_context,
+)
 
 
 # You can change this model name later if you want to use a different model.
@@ -88,9 +92,17 @@ def build_prompt(
         f"Indexed local files:\n{indexed_sources}\n\n"
         f"Relevant local knowledge excerpts:\n{knowledge_text}\n\n"
         "Web search rules:\n"
+        "- Prefer lower source tiers. Tier 1 is strongest, tier 5 is weakest.\n"
+        "- Tier 1: official sources, official docs, company sites, official GitHub, official announcements.\n"
+        "- Tier 2: authoritative institutions or professional databases such as EIA, IEA, Trading Economics, Bank of Canada, NVIDIA, Raspberry Pi docs.\n"
+        "- Tier 3: mainstream or professional media such as Reuters, AP, BBC, CBC, CNBC, Bloomberg, The Verge, Tom's Hardware.\n"
+        "- Tier 4: blogs, forums, personal sites, tutorials. Use as supporting context only.\n"
+        "- Tier 5: unclear reposts or low-quality sources. Avoid unless no better source exists.\n"
         "- Use web excerpts only when web search results are provided below.\n"
-        "- When using web information, mention the source numbers like [1] or [2].\n"
+        "- Do not invent numbers. If a number is not present in the excerpts, say the searched excerpts do not provide it.\n"
+        "- When using web information, mention source numbers like [1] or [2].\n"
         "- If web search failed, say that live web information was not available.\n\n"
+        f"Web query plan:\n{web_context['queries']}\n\n"
         f"Web sources:\n{web_context['sources']}\n\n"
         f"Web excerpts:\n{web_context['text']}\n\n"
         f"Conversation history:\n{history_text}\n\n"
@@ -117,6 +129,7 @@ def stream_ollama_response(
     if raw_web_context is None:
         raw_web_context = get_web_context(user_message)
     web_context = {
+        "queries": format_query_variants(raw_web_context["query_variants"]),
         "sources": format_web_sources(raw_web_context["sources"]),
         "text": raw_web_context["text"],
     }
