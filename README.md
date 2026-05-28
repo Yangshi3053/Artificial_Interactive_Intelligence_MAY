@@ -385,6 +385,8 @@ Avoid when possible
 
 The model is instructed not to invent data. If a number is not visible in the searched excerpts, it should say the excerpts do not provide that number.
 
+For common oil-price questions, the search module also has fallback authoritative sources. For example, Iran, Russia, the United States, and Canada can fall back to EIA, GlobalPetrolPrices, or official government energy pages when the search result page returns too few useful sources.
+
 If there is no internet connection or the web page blocks reading, the assistant will say live web information was not available.
 
 The model is also told that web search is an external Python tool in this local project. It should not claim that it cannot search the web when sources have been provided by the program.

@@ -9,9 +9,10 @@ import requests
 SEARCH_URL = "https://duckduckgo.com/html/?q="
 MAX_SEARCH_RESULTS = 3
 MAX_RESULTS_PER_QUERY = 6
-MAX_QUERY_VARIANTS = 4
+MAX_QUERY_VARIANTS = 5
 MAX_PAGE_CHARACTERS = 2500
 
+# Chinese words are written with Unicode escapes so this file stays ASCII-safe.
 WEB_SEARCH_KEYWORDS = [
     "latest",
     "current",
@@ -26,18 +27,24 @@ WEB_SEARCH_KEYWORDS = [
     "web",
     "internet",
     "online",
-    "最新",
-    "今天",
-    "现在",
-    "新闻",
-    "价格",
-    "天气",
-    "联网",
-    "上网",
-    "网上",
-    "搜索",
-    "查一下",
-    "查询",
+    "oil price",
+    "gas price",
+    "\u6700\u65b0",  # latest
+    "\u4eca\u5929",  # today
+    "\u73b0\u5728",  # now
+    "\u65b0\u95fb",  # news
+    "\u4ef7\u683c",  # price
+    "\u5929\u6c14",  # weather
+    "\u8054\u7f51",  # web access
+    "\u4e0a\u7f51",  # go online
+    "\u7f51\u4e0a",  # online
+    "\u641c\u7d22",  # search
+    "\u67e5\u4e00\u4e0b",  # look up
+    "\u67e5\u8be2",  # query
+    "\u6cb9\u4ef7",  # oil price
+    "\u539f\u6cb9",  # crude oil
+    "\u6c7d\u6cb9",  # gasoline
+    "\u71c3\u6cb9",  # fuel
 ]
 
 OFFICIAL_DOMAINS = [
@@ -48,6 +55,8 @@ OFFICIAL_DOMAINS = [
     ".edu",
     "canada.ca",
     "bankofcanada.ca",
+    "nrcan.gc.ca",
+    "natural-resources.canada.ca",
     "nvidia.com",
     "raspberrypi.com",
     "github.com",
@@ -61,8 +70,10 @@ OFFICIAL_DOMAINS = [
 AUTHORITY_DOMAINS = [
     "tradingeconomics.com",
     "globalpetrolprices.com",
+    "oilprice.cc",
     "statcan.gc.ca",
     "150.statcan.gc.ca",
+    "www150.statcan.gc.ca",
     "worldbank.org",
     "imf.org",
     "oecd.org",
@@ -87,6 +98,91 @@ LOW_QUALITY_HINTS = [
     "download",
     "freepdf",
 ]
+
+COUNTRY_ALIASES = {
+    "canada": ["canada", "\u52a0\u62ff\u5927"],
+    "iran": ["iran", "\u4f0a\u6717"],
+    "russia": ["russia", "\u4fc4\u7f57\u65af", "\u4fc4\u7f85\u65af"],
+    "united_states": [
+        "united states",
+        "usa",
+        "u.s.",
+        "us ",
+        "\u7f8e\u56fd",
+        "\u7f8e\u570b",
+    ],
+}
+
+OIL_PRICE_FALLBACK_SOURCES = {
+    "iran": [
+        {
+            "title": "Iran gasoline prices - GlobalPetrolPrices.com",
+            "url": "https://www.globalpetrolprices.com/Iran/gasoline_prices/",
+            "tier": 2,
+            "tier_reason": "authoritative database or institution",
+            "language": "en",
+            "query": "Iran gasoline prices GlobalPetrolPrices",
+            "query_reason": "Fallback authoritative energy price source",
+            "search_position": 50,
+        },
+        {
+            "title": "Iran energy profile - U.S. Energy Information Administration",
+            "url": "https://www.eia.gov/international/analysis/country/IRN",
+            "tier": 1,
+            "tier_reason": "official source",
+            "language": "en",
+            "query": "Iran energy profile EIA",
+            "query_reason": "Fallback official energy source",
+            "search_position": 51,
+        },
+    ],
+    "russia": [
+        {
+            "title": "Russia gasoline prices - GlobalPetrolPrices.com",
+            "url": "https://www.globalpetrolprices.com/Russia/gasoline_prices/",
+            "tier": 2,
+            "tier_reason": "authoritative database or institution",
+            "language": "en",
+            "query": "Russia gasoline prices GlobalPetrolPrices",
+            "query_reason": "Fallback authoritative energy price source",
+            "search_position": 50,
+        },
+        {
+            "title": "Russia energy profile - U.S. Energy Information Administration",
+            "url": "https://www.eia.gov/international/analysis/country/RUS",
+            "tier": 1,
+            "tier_reason": "official source",
+            "language": "en",
+            "query": "Russia energy profile EIA",
+            "query_reason": "Fallback official energy source",
+            "search_position": 51,
+        },
+    ],
+    "united_states": [
+        {
+            "title": "Gasoline and Diesel Fuel Update - U.S. Energy Information Administration",
+            "url": "https://www.eia.gov/petroleum/gasdiesel/",
+            "tier": 1,
+            "tier_reason": "official source",
+            "language": "en",
+            "query": "United States gasoline price EIA",
+            "query_reason": "Fallback official energy price source",
+            "search_position": 50,
+        },
+    ],
+    "canada": [
+        {
+            "title": "Fuel consumption levies in Canada - Natural Resources Canada",
+            "url": "https://natural-resources.canada.ca/energy-efficiency/transportation-alternative-fuels/fuel-consumption-levies-canada",
+            "tier": 1,
+            "tier_reason": "official source",
+            "language": "en",
+            "query": "Canada fuel prices Natural Resources Canada",
+            "query_reason": "Fallback official Canadian energy source",
+            "search_position": 50,
+        },
+    ],
+}
 
 
 class SimpleHTMLTextParser(HTMLParser):
@@ -143,23 +239,74 @@ def clean_query(question):
     return stripped
 
 
+def detect_country(question):
+    """Detect common country names in English or Chinese."""
+    lower_question = f" {question.lower()} "
+
+    for country, aliases in COUNTRY_ALIASES.items():
+        for alias in aliases:
+            if alias in lower_question:
+                return country
+
+    return None
+
+
+def is_oil_price_question(question):
+    """Return True for oil, gasoline, fuel, and crude-oil price questions."""
+    lower_question = question.lower()
+    oil_terms = [
+        "oil",
+        "gas",
+        "gasoline",
+        "fuel",
+        "petrol",
+        "crude",
+        "\u6cb9\u4ef7",
+        "\u539f\u6cb9",
+        "\u6c7d\u6cb9",
+        "\u71c3\u6cb9",
+    ]
+
+    return any(term in lower_question for term in oil_terms)
+
+
 def detect_search_language_plan(question):
     """
     Pick useful search languages for the topic.
 
-    For country-specific questions, search in the country's main source
-    languages instead of only using the user's input language.
+    Country-specific questions search in the languages most likely to find
+    official or authoritative local sources.
     """
-    lower_question = question.lower()
+    country = detect_country(question)
 
-    if "canada" in lower_question or "加拿大" in lower_question:
+    if country == "canada":
         return [
             ("en", "English sources for Canada"),
             ("fr", "French sources for Canada"),
             ("original", "Original user wording"),
         ]
 
-    if "china" in lower_question or "中国" in lower_question or "中國" in lower_question:
+    if country == "iran":
+        return [
+            ("en", "English international energy sources for Iran"),
+            ("fa", "Persian local-source wording for Iran"),
+            ("original", "Original user wording"),
+        ]
+
+    if country == "russia":
+        return [
+            ("en", "English international energy sources for Russia"),
+            ("ru", "Russian local-source wording for Russia"),
+            ("original", "Original user wording"),
+        ]
+
+    if country == "united_states":
+        return [
+            ("en", "English official US sources"),
+            ("original", "Original user wording"),
+        ]
+
+    if country == "china":
         return [
             ("zh", "Chinese sources for China"),
             ("en", "English international sources"),
@@ -169,23 +316,41 @@ def detect_search_language_plan(question):
     return [("original", "Original user wording"), ("en", "English sources")]
 
 
+def build_oil_price_query(country, language, base_query):
+    """Build specialized oil-price queries with stronger source intent."""
+    if country == "canada" and language == "en":
+        return "Canada gasoline prices today official government data"
+    if country == "canada" and language == "fr":
+        return "prix essence Canada aujourd'hui donnees officielles gouvernement"
+
+    if country == "iran" and language == "en":
+        return "Iran crude oil gasoline prices today EIA IEA Trading Economics"
+    if country == "iran" and language == "fa":
+        return "Iran gasoline price crude oil official today"
+
+    if country == "russia" and language == "en":
+        return "Russia crude oil gasoline prices today EIA IEA Trading Economics"
+    if country == "russia" and language == "ru":
+        return "Russia gasoline price crude oil official today"
+
+    if country == "united_states" and language == "en":
+        return "United States gasoline price today EIA official data"
+
+    if language == "en":
+        return f"{base_query} EIA IEA Trading Economics oil price today"
+
+    return base_query
+
+
 def build_localized_query(question, language):
     """Build one search query for a target language."""
     base_query = clean_query(question)
-    lower_query = base_query.lower()
-    is_oil_price = any(
-        word in lower_query
-        for word in ["oil", "gas", "gasoline", "fuel", "petrol", "油价", "汽油", "燃油"]
-    )
-    is_canada = "canada" in lower_query or "加拿大" in lower_query
+    country = detect_country(base_query)
 
-    if is_canada and is_oil_price and language == "en":
-        return "Canada gasoline prices today official government data"
+    if is_oil_price_question(base_query):
+        return build_oil_price_query(country, language, base_query)
 
-    if is_canada and is_oil_price and language == "fr":
-        return "prix essence Canada aujourd'hui donnees officielles gouvernement"
-
-    if language == "en" and base_query != lower_query:
+    if language == "en" and base_query != base_query.lower():
         return f"{base_query} official source"
 
     return base_query
@@ -233,15 +398,7 @@ def get_domain(url):
 
 
 def source_tier_for_url(url):
-    """
-    Classify a source using the user's five-level source-quality policy.
-
-    Tier 1: official sources.
-    Tier 2: professional databases and authoritative institutions.
-    Tier 3: mainstream or professional media.
-    Tier 4: blogs, forums, tutorials, personal websites.
-    Tier 5: unclear repost or low-quality sources.
-    """
+    """Classify a source using the five-level source-quality policy."""
     domain = get_domain(url)
 
     if any(hint in domain for hint in LOW_QUALITY_HINTS):
@@ -319,6 +476,18 @@ def search_web(question):
             all_results.append(result)
             seen_urls.add(result["url"])
 
+    country = detect_country(question)
+
+    if is_oil_price_question(question) and country in OIL_PRICE_FALLBACK_SOURCES:
+        for result in OIL_PRICE_FALLBACK_SOURCES[country]:
+            if result["url"] in seen_urls:
+                continue
+
+            result = dict(result)
+            result["domain"] = get_domain(result["url"])
+            all_results.append(result)
+            seen_urls.add(result["url"])
+
     all_results.sort(key=result_rank_key)
 
     return all_results[:MAX_SEARCH_RESULTS]
@@ -338,15 +507,7 @@ def fetch_page_text(url):
 
 
 def get_web_context(question):
-    """
-    Search the web and fetch readable text from the top ranked results.
-
-    Returns:
-    - used: whether web search was attempted
-    - query_variants: multilingual search queries used
-    - sources: ranked source title and URL list
-    - text: webpage excerpts or an error message
-    """
+    """Search the web and fetch readable text from the top ranked results."""
     if not needs_web_search(question):
         return {"used": False, "query_variants": [], "sources": [], "text": ""}
 
