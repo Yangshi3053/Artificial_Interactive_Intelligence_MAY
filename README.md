@@ -32,6 +32,10 @@ Artificial_Interactive_Intelligence_MAY/
 |-- online_search/
 |   |-- __init__.py
 |   `-- web_search.py
+|-- tts/
+|   |-- __init__.py
+|   |-- audio_player.py
+|   `-- cosyvoice_client.py
 |-- utils/
 |   |-- __init__.py
 |   `-- debug.py
@@ -81,6 +85,7 @@ It does these things:
 - lets you type `reindex` to reread local knowledge files
 - lets you type `memory` to see long-term memory status
 - lets you type `system` to see local system context
+- lets you type `voice on`, `voice off`, or `speak text` for CosyVoice speech
 
 If the terminal loop, built-in commands, monitor startup, or memory saving are acting strangely, start debugging here.
 
@@ -96,6 +101,7 @@ It contains:
 - short-term history size
 - built-in terminal commands
 - debug mode switch
+- CosyVoice text-to-speech settings
 
 The default model is:
 
@@ -158,6 +164,49 @@ python main.py
 ```
 
 Debug mode prints simple progress messages such as memory lookup, web lookup, and memory saving.
+
+### tts/cosyvoice_client.py
+
+This file talks to a separately running CosyVoice FastAPI server.
+
+It does these things:
+
+- sends text to CosyVoice
+- uses the `/inference_sft` endpoint by default
+- receives raw audio bytes from CosyVoice
+- saves the result as a normal `.wav` file
+
+The default CosyVoice URL is:
+
+```python
+COSYVOICE_URL = "http://localhost:50000/inference_sft"
+```
+
+The default speaker is:
+
+```python
+COSYVOICE_SPK_ID = "中文女"
+```
+
+Generated voice files are saved in:
+
+```text
+voice_output/
+```
+
+This folder is ignored by Git.
+
+Long answers are shortened before speech by default so CosyVoice does not try to read an entire long response:
+
+```python
+COSYVOICE_MAX_TEXT_CHARACTERS = 800
+```
+
+### tts/audio_player.py
+
+This file plays generated WAV files.
+
+On Windows it uses Python's built-in `winsound` module.
 
 ### system_context/local_info.py
 
@@ -314,6 +363,51 @@ ollama pull qwen3:14b
 ```
 
 Make sure Ollama is running.
+
+## Optional CosyVoice Speech Setup
+
+CosyVoice is not installed inside this project. Run it as a separate local service, then this assistant can call it.
+
+Official CosyVoice uses a FastAPI server. A typical CosyVoice server command is:
+
+```bash
+cd CosyVoice/runtime/python/fastapi
+python server.py --port 50000 --model_dir iic/CosyVoice-300M-SFT
+```
+
+This project calls:
+
+```text
+http://localhost:50000/inference_sft
+```
+
+You can change the server URL or speaker with environment variables:
+
+```powershell
+$env:COSYVOICE_URL='http://localhost:50000/inference_sft'
+$env:COSYVOICE_SPK_ID='中文女'
+```
+
+To start the assistant with automatic speech enabled:
+
+```powershell
+$env:LOCAL_AI_TTS='1'
+python main.py
+```
+
+You can also turn speech on or off while chatting:
+
+```text
+voice on
+voice off
+voice
+```
+
+To test CosyVoice without asking the AI a question:
+
+```text
+speak 你好，这是一次语音测试。
+```
 
 ## Add Local Files for the Assistant to Search
 

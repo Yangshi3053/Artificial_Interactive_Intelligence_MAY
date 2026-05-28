@@ -54,3 +54,6 @@ memory/*.sqlite-*
 
 # Local system context cache
 system_context/location_cache.json
+
+# Generated voice files
+voice_output/

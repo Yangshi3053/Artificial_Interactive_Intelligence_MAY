@@ -1,9 +1,17 @@
 from app_config import (
+    COSYVOICE_AUTO_SPEAK,
+    COSYVOICE_SAMPLE_RATE,
+    COSYVOICE_SPK_ID,
+    COSYVOICE_URL,
     EXIT_COMMANDS,
     MEMORY_COMMANDS,
     MODEL_NAME,
     REINDEX_COMMANDS,
+    SPEAK_PREFIXES,
     SYSTEM_COMMANDS,
+    VOICE_OFF_COMMANDS,
+    VOICE_ON_COMMANDS,
+    VOICE_STATUS_COMMANDS,
 )
 from knowledge_base.index_documents import build_index
 from memory.long_term_memory import (
@@ -25,6 +33,8 @@ from system_context.local_info import (
     format_local_system_context,
     get_local_system_context,
 )
+from tts.audio_player import play_wav
+from tts.cosyvoice_client import synthesize_to_wav
 from utils.debug import debug_log
 
 
@@ -34,6 +44,7 @@ class AssistantEngine:
     def __init__(self):
         self.conversation_history = []
         self.monitor_process = None
+        self.voice_enabled = COSYVOICE_AUTO_SPEAK
 
     def run(self):
         """Start the assistant and keep the terminal chat loop running."""
@@ -67,6 +78,7 @@ class AssistantEngine:
         print("Type reindex to reread files in knowledge_base/documents.\n")
         print("Type memory to see long-term memory status.\n")
         print("Type system to see local date, time, region, and location status.\n")
+        print("Type voice on, voice off, or voice to control CosyVoice speech.\n")
 
     def handle_command(self, user_message):
         """Handle built-in terminal commands. Return True when handled."""
@@ -87,6 +99,27 @@ class AssistantEngine:
 
         if command in SYSTEM_COMMANDS:
             self.print_system_status()
+            return True
+
+        if command in VOICE_STATUS_COMMANDS:
+            self.print_voice_status()
+            return True
+
+        if command in VOICE_ON_COMMANDS:
+            self.voice_enabled = True
+            print("CosyVoice speech is on.\n")
+            self.print_voice_status()
+            return True
+
+        if command in VOICE_OFF_COMMANDS:
+            self.voice_enabled = False
+            print("CosyVoice speech is off.\n")
+            return True
+
+        speak_text = self.extract_speak_command(user_message)
+
+        if speak_text is not None:
+            self.speak_text(speak_text)
             return True
 
         return False
@@ -118,6 +151,46 @@ class AssistantEngine:
         system_context = get_local_system_context()
         print(format_local_system_context(system_context))
         print()
+
+    def print_voice_status(self):
+        """Print current CosyVoice text-to-speech settings."""
+        state = "on" if self.voice_enabled else "off"
+        print(f"CosyVoice speech: {state}")
+        print(f"CosyVoice URL: {COSYVOICE_URL}")
+        print(f"Speaker ID: {COSYVOICE_SPK_ID}")
+        print(f"Sample rate: {COSYVOICE_SAMPLE_RATE} Hz\n")
+
+    def extract_speak_command(self, user_message):
+        """Return text after a speak command, or None when it is not a command."""
+        lower_message = user_message.lower()
+
+        for prefix in SPEAK_PREFIXES:
+            if lower_message.startswith(prefix):
+                return user_message[len(prefix):].strip()
+
+        return None
+
+    def speak_text(self, text):
+        """Generate speech with CosyVoice and play it when possible."""
+        if not text:
+            print("Please type text after speak.\n")
+            return
+
+        try:
+            wav_path = synthesize_to_wav(text)
+        except RuntimeError as error:
+            print(f"Voice error: {error}\n")
+            return
+        except ValueError as error:
+            print(f"Voice error: {error}\n")
+            return
+
+        played = play_wav(wav_path)
+
+        if played:
+            print(f"Voice saved and played: {wav_path}\n")
+        else:
+            print(f"Voice saved: {wav_path}\n")
 
     def run_chat_turn(self, user_message):
         """Collect context, call the model, stream the answer, and save memory."""
@@ -177,3 +250,6 @@ class AssistantEngine:
         save_message("assistant", answer)
         save_memories_from_turn(user_message, answer)
         debug_log("Saved successful turn to memory")
+
+        if self.voice_enabled:
+            self.speak_text(answer)
