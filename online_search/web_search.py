@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 import requests
 
 
-SEARCH_URL = "https://duckduckgo.com/html/?q="
+SEARCH_URL = "https://duckduckgo.com/html/?kl=us-en&q="
 MAX_SEARCH_RESULTS = 3
 MAX_RESULTS_PER_QUERY = 6
 MAX_QUERY_VARIANTS = 5
@@ -112,6 +112,50 @@ COUNTRY_ALIASES = {
         "\u7f8e\u570b",
     ],
 }
+
+ENGLISH_QUERY_REPLACEMENTS = [
+    ("\u4eca\u5929", "today"),
+    ("\u73b0\u5728", "current"),
+    ("\u6700\u65b0", "latest"),
+    ("\u5168\u7403", "global"),
+    ("\u4e16\u754c", "world"),
+    ("\u52a0\u62ff\u5927", "Canada"),
+    ("\u4f0a\u6717", "Iran"),
+    ("\u4fc4\u7f57\u65af", "Russia"),
+    ("\u4fc4\u7f85\u65af", "Russia"),
+    ("\u7f8e\u56fd", "United States"),
+    ("\u7f8e\u570b", "United States"),
+    ("\u4e2d\u56fd", "China"),
+    ("\u4e2d\u570b", "China"),
+    ("\u6cb9\u4ef7", "oil prices"),
+    ("\u539f\u6cb9", "crude oil"),
+    ("\u6c7d\u6cb9", "gasoline"),
+    ("\u71c3\u6cb9", "fuel"),
+    ("\u5929\u6c14", "weather"),
+    ("\u65b0\u95fb", "news"),
+    ("\u4ef7\u683c", "price"),
+    ("\u5b98\u65b9\u6587\u6863", "official documentation"),
+    ("\u5b98\u65b9", "official"),
+    ("\u5b98\u7f51", "official website"),
+    ("\u6587\u6863", "documentation"),
+    ("\u624b\u518c", "manual"),
+    ("\u62a5\u544a", "report"),
+    ("\u8d44\u6599", "documentation"),
+    ("\u5f00\u53d1\u8005", "developer"),
+    ("\u5f15\u811a", "pinout"),
+    ("\u63a5\u53e3", "interface"),
+    ("\u6559\u7a0b", "tutorial"),
+    ("\u4e0b\u8f7d", "download"),
+    ("\u600e\u4e48\u6837", ""),
+    ("\u600e\u6837", ""),
+    ("\u591a\u5c11", ""),
+    ("\u67e5\u4e00\u4e0b", ""),
+    ("\u641c\u7d22", ""),
+    ("\u5462", ""),
+    ("\u5417", ""),
+    ("\uff1f", ""),
+    ("?", ""),
+]
 
 OIL_PRICE_FALLBACK_SOURCES = {
     "iran": [
@@ -239,6 +283,28 @@ def clean_query(question):
     return stripped
 
 
+def contains_chinese(text):
+    """Return True when text contains Chinese characters."""
+    return bool(re.search(r"[\u4e00-\u9fff]", text))
+
+
+def build_english_query_text(question):
+    """Convert common Chinese search wording into an English-first query."""
+    query = clean_query(question)
+
+    for source_text, replacement in ENGLISH_QUERY_REPLACEMENTS:
+        query = query.replace(source_text, f" {replacement} ")
+
+    query = " ".join(query.split())
+
+    if contains_chinese(query):
+        query = f"{query} English official source"
+    else:
+        query = f"{query} official source"
+
+    return query.strip()
+
+
 def detect_country(question):
     """Detect common country names in English or Chinese."""
     lower_question = f" {question.lower()} "
@@ -308,12 +374,15 @@ def detect_search_language_plan(question):
 
     if country == "china":
         return [
-            ("zh", "Chinese sources for China"),
             ("en", "English international sources"),
+            ("zh", "Chinese sources for China"),
             ("original", "Original user wording"),
         ]
 
-    return [("original", "Original user wording"), ("en", "English sources")]
+    return [
+        ("en", "English-first web search"),
+        ("original", "Original user wording as fallback"),
+    ]
 
 
 def build_oil_price_query(country, language, base_query):
@@ -337,7 +406,8 @@ def build_oil_price_query(country, language, base_query):
         return "United States gasoline price today EIA official data"
 
     if language == "en":
-        return f"{base_query} EIA IEA Trading Economics oil price today"
+        english_query = build_english_query_text(base_query)
+        return f"{english_query} EIA IEA Trading Economics oil price today"
 
     return base_query
 
@@ -350,8 +420,8 @@ def build_localized_query(question, language):
     if is_oil_price_question(base_query):
         return build_oil_price_query(country, language, base_query)
 
-    if language == "en" and base_query != base_query.lower():
-        return f"{base_query} official source"
+    if language == "en":
+        return build_english_query_text(base_query)
 
     return base_query
 
@@ -459,8 +529,21 @@ def search_one_query(query_info):
 
 
 def result_rank_key(result):
-    """Sort by source tier first, then original search position."""
-    return (result["tier"], result["search_position"])
+    """Sort by source tier, English-first language choice, then position."""
+    language_priority = {
+        "en": 0,
+        "fr": 1,
+        "zh": 2,
+        "fa": 2,
+        "ru": 2,
+        "original": 3,
+    }
+
+    return (
+        result["tier"],
+        language_priority.get(result["language"], 2),
+        result["search_position"],
+    )
 
 
 def search_web(question):

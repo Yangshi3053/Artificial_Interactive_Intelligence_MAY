@@ -74,7 +74,7 @@ It does these things:
 - searches the web when the question needs current information
 - prints whether web search was used before the AI answer
 - ranks web sources with a 1-5 source quality tier system
-- searches in locally relevant languages when useful
+- searches English sources first, with local-language searches as fallback
 - reads local date, time, timezone, region, and approximate location context
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
@@ -439,7 +439,7 @@ Web search: used, 3 source(s)
 
 When web search is used, the terminal also prints the source titles and URLs.
 
-The terminal also prints the query plan. For example, if you ask in Chinese about Canadian gas prices, the program can search English and French queries because those are more likely to find official Canadian sources.
+The terminal also prints the query plan. Even if you ask in Chinese, the program usually searches English first because English queries are more likely to find official documents, authoritative databases, and international news sources. For some countries, it may also add local-language queries as fallback.
 
 Examples that trigger web search:
 
@@ -454,7 +454,7 @@ The model receives:
 
 - source links
 - source quality tiers
-- multilingual query plan
+- English-first query plan
 - short webpage excerpts
 - your original question
 
