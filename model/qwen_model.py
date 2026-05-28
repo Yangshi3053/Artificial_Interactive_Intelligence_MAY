@@ -28,6 +28,7 @@ MAX_HISTORY_CHARACTERS = 12000
 def build_prompt(
     conversation_history,
     user_message,
+    memory_context,
     indexed_sources,
     knowledge_text,
     web_context,
@@ -47,6 +48,10 @@ def build_prompt(
     return (
         "You are a helpful local AI assistant.\n"
         "Use the conversation history to understand follow-up questions.\n\n"
+        "Use long-term memory when it is relevant.\n"
+        "Long-term memory may contain user preferences, project context, and older chat turns.\n"
+        "Do not reveal private memory unless it helps answer the user's current question.\n\n"
+        f"Relevant long-term memory:\n{memory_context}\n\n"
         "Use the local knowledge base when it is relevant.\n"
         "If the knowledge base is empty or not relevant, answer normally.\n\n"
         "Important rules for the local knowledge base:\n"
@@ -68,7 +73,7 @@ def build_prompt(
     )
 
 
-def stream_ollama_response(conversation_history, user_message):
+def stream_ollama_response(conversation_history, user_message, memory_context):
     """
     Send the user's message to Ollama and yield text pieces as they arrive.
 
@@ -86,6 +91,7 @@ def stream_ollama_response(conversation_history, user_message):
     prompt = build_prompt(
         conversation_history,
         user_message,
+        memory_context,
         indexed_sources,
         knowledge_text,
         web_context,

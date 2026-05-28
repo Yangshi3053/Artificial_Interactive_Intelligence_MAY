@@ -47,3 +47,7 @@ venv/
 knowledge_base/index.json
 knowledge_base/documents/*
 !knowledge_base/documents/README.md
+
+# Local long-term memory
+memory/*.sqlite
+memory/*.sqlite-*

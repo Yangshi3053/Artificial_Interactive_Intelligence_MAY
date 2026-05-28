@@ -20,6 +20,10 @@ Artificial_Interactive_Intelligence_MAY/
 |-- model/
 |   |-- __init__.py
 |   `-- qwen_model.py
+|-- memory/
+|   |-- __init__.py
+|   |-- long_term_memory.py
+|   `-- README.md
 |-- online_search/
 |   |-- __init__.py
 |   `-- web_search.py
@@ -43,11 +47,13 @@ It does these things:
 - asks you to type messages
 - prints the AI response while it is being generated
 - stores recent conversation history
+- stores searchable long-term memory in a local database
 - searches the local knowledge base before answering
 - searches the web when the question needs current information
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
 - lets you type `reindex` to reread local knowledge files
+- lets you type `memory` to see long-term memory status
 
 Run the project from this file:
 
@@ -64,6 +70,7 @@ It does these things:
 - stores the model name
 - builds the prompt sent to Ollama
 - keeps the recent chat history inside the prompt
+- adds relevant long-term memory to the prompt
 - adds relevant local knowledge base results to the prompt
 - adds web search results to the prompt when needed
 - calls Ollama's local HTTP API
@@ -93,6 +100,26 @@ Recent conversation history is controlled by:
 ```python
 MAX_HISTORY_CHARACTERS = 12000
 ```
+
+### memory/long_term_memory.py
+
+This file contains the long-term memory system.
+
+It does these things:
+
+- creates a local SQLite database
+- saves chat messages after successful answers
+- extracts durable user preferences and instructions
+- searches old memories before each new answer
+- formats relevant memory for the model prompt
+
+The memory database is stored locally:
+
+```text
+memory/memory.sqlite
+```
+
+This file is ignored by Git, so private memory is not uploaded to GitHub.
 
 ### knowledge_base/documents/
 
@@ -260,6 +287,12 @@ q
 
 The monitor window will close automatically when the chat program exits.
 
+You can check memory status by typing:
+
+```text
+memory
+```
+
 ## How Chat Works
 
 The program sends requests to:
@@ -305,11 +338,31 @@ If there is no internet connection or the web page blocks reading, the assistant
 
 Ollama's `/api/generate` endpoint does not automatically remember previous messages from this Python program.
 
-This project keeps a simple list of recent conversation turns in `main.py`.
+This project uses two kinds of memory.
+
+Short-term memory is a simple list of recent conversation turns in `main.py`.
 
 Before each request, `model/qwen_model.py` adds that history to the prompt so the model can answer follow-up questions.
 
-This memory lasts only while the program is running. If you close the program, the chat history is cleared.
+Short-term memory lasts only while the program is running. If you close the program, this recent chat list is cleared.
+
+Long-term memory is stored in:
+
+```text
+memory/memory.sqlite
+```
+
+The program saves successful chat turns and extracts durable facts, preferences, and instructions. Before each new answer, it searches this database for relevant memories and sends them to the model.
+
+Examples of things that can become long-term memory:
+
+```text
+Remember that I prefer optimal solutions.
+以后不用太顾及难度，以最优解来。
+My name is Alex.
+```
+
+This does not retrain Qwen's model weights. It is retrieval memory: the program saves useful information locally and provides relevant parts to Qwen when needed.
 
 ## How Local File Search Works
 
