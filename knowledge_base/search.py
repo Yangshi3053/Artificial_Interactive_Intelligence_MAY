@@ -6,7 +6,31 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 INDEX_FILE = PROJECT_ROOT / "knowledge_base" / "index.json"
 
-MAX_SEARCH_RESULTS = 3
+MAX_SEARCH_RESULTS = 6
+
+BROAD_DOCUMENT_KEYWORDS = [
+    "knowledge_base",
+    "knowledge base",
+    "document",
+    "documents",
+    "folder",
+    "file",
+    "files",
+    "read",
+    "reread",
+    "explain",
+    "summarize",
+    "summary",
+    "知识库",
+    "文档",
+    "文件",
+    "文件夹",
+    "读取",
+    "读",
+    "解释",
+    "总结",
+    "内容",
+]
 
 
 def load_index():
@@ -56,6 +80,51 @@ def score_text(text, keywords):
     return score
 
 
+def is_broad_document_question(question):
+    """
+    Return True when the user asks about the knowledge base in general.
+
+    Example: "读取知识库内的文档，并解释其内容". This kind of question may not
+    share keywords with an English PDF, so we should still provide document
+    excerpts instead of only passing file names to the model.
+    """
+    lower_question = question.lower()
+
+    for keyword in BROAD_DOCUMENT_KEYWORDS:
+        if keyword in lower_question:
+            return True
+
+    return False
+
+
+def get_first_chunks_by_source(documents):
+    """Return early chunks from each indexed file for broad document questions."""
+    results = []
+    seen_sources = set()
+
+    for document in documents:
+        source = document.get("source", "")
+
+        if source not in seen_sources:
+            results.append(document)
+            seen_sources.add(source)
+
+        if len(results) >= MAX_SEARCH_RESULTS:
+            break
+
+    if len(results) < MAX_SEARCH_RESULTS:
+        for document in documents:
+            if document in results:
+                continue
+
+            results.append(document)
+
+            if len(results) >= MAX_SEARCH_RESULTS:
+                break
+
+    return results
+
+
 def search_knowledge_base(question):
     """
     Search indexed local documents and return the most relevant text chunks.
@@ -65,7 +134,13 @@ def search_knowledge_base(question):
     documents = load_index()
     keywords = get_keywords(question)
 
-    if not documents or not keywords:
+    if not documents:
+        return []
+
+    if is_broad_document_question(question):
+        return get_first_chunks_by_source(documents)
+
+    if not keywords:
         return []
 
     scored_results = []

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from docx import Document
 from pypdf import PdfReader
 
 
@@ -8,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCUMENTS_FOLDER = PROJECT_ROOT / "knowledge_base" / "documents"
 INDEX_FILE = PROJECT_ROOT / "knowledge_base" / "index.json"
 
-SUPPORTED_FILE_TYPES = [".txt", ".md", ".pdf"]
+SUPPORTED_FILE_TYPES = [".txt", ".md", ".pdf", ".docx"]
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 
@@ -45,10 +46,42 @@ def read_pdf_file(file_path):
     return "\n\n".join(pages)
 
 
+def read_docx_file(file_path):
+    """Read text from a Microsoft Word .docx file."""
+    document = Document(str(file_path))
+    parts = []
+
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+
+        if text:
+            parts.append(text)
+
+    for table in document.tables:
+        for row in table.rows:
+            cells = []
+
+            for cell in row.cells:
+                cell_text = " ".join(cell.text.split())
+
+                if cell_text:
+                    cells.append(cell_text)
+
+            if cells:
+                parts.append(" | ".join(cells))
+
+    return "\n".join(parts)
+
+
 def read_supported_file(file_path):
     """Choose the correct reader for each supported file type."""
-    if file_path.suffix.lower() == ".pdf":
+    file_type = file_path.suffix.lower()
+
+    if file_type == ".pdf":
         return read_pdf_file(file_path)
+
+    if file_type == ".docx":
+        return read_docx_file(file_path)
 
     return read_text_file(file_path)
 

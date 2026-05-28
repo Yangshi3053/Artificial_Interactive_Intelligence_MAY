@@ -101,6 +101,7 @@ The current version supports:
 .txt
 .md
 .pdf
+.docx
 ```
 
 ### knowledge_base/index_documents.py
@@ -150,6 +151,7 @@ requests
 psutil
 nvidia-ml-py
 pypdf
+python-docx
 ```
 
 `requests` talks to Ollama.
@@ -159,6 +161,8 @@ pypdf
 `nvidia-ml-py` reads NVIDIA GPU usage and GPU memory usage.
 
 `pypdf` reads text from PDF files in the local knowledge base.
+
+`python-docx` reads text from Word `.docx` files in the local knowledge base.
 
 ## Setup
 
@@ -180,7 +184,7 @@ Make sure Ollama is running.
 
 ## Add Local Files for the Assistant to Search
 
-Put `.txt`, `.md`, or `.pdf` files into:
+Put `.txt`, `.md`, `.pdf`, or `.docx` files into:
 
 ```text
 knowledge_base/documents/
@@ -201,6 +205,8 @@ python main.py
 When you ask a question, the program searches the local index first and sends the most relevant text chunks to the model.
 
 PDF support works best when the PDF contains selectable text. If the PDF is scanned pages or images, you may need OCR before the assistant can read the words.
+
+Word `.docx` support reads normal paragraphs and table text.
 
 ## Run
 

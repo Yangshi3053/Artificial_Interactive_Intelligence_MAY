@@ -43,3 +43,7 @@ __pycache__/
 .venv/
 venv/
 
+# Local knowledge base content
+knowledge_base/index.json
+knowledge_base/documents/*
+!knowledge_base/documents/README.md

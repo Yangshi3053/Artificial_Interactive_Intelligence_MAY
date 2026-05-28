@@ -2,3 +2,4 @@ requests
 psutil
 nvidia-ml-py
 pypdf
+python-docx
