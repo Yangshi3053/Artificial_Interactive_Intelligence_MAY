@@ -24,6 +24,28 @@ MAX_RESPONSE_TOKENS = 4096
 # and trims old text when the conversation gets too long.
 MAX_HISTORY_CHARACTERS = 12000
 
+# Ollama showed this model running with a 32768-token context window on this
+# machine. Keep it as a visible project setting so the assistant does not invent
+# unrelated cloud-model limits.
+OLLAMA_CONTEXT_TOKENS = 32768
+
+
+def get_assistant_status_text():
+    """Return the real local assistant configuration for the model prompt."""
+    return (
+        "Assistant runtime status:\n"
+        "- Runtime: local Python terminal assistant\n"
+        "- Model host: local Ollama HTTP API\n"
+        f"- Model name: {MODEL_NAME}\n"
+        f"- Approximate Ollama context window: {OLLAMA_CONTEXT_TOKENS} tokens\n"
+        f"- Max generated tokens per answer: {MAX_RESPONSE_TOKENS}\n"
+        f"- Short-term history limit: {MAX_HISTORY_CHARACTERS} characters\n"
+        "- Local knowledge base: enabled\n"
+        "- Long-term memory: enabled through local SQLite retrieval\n"
+        "- Optional web search: enabled through the Python online_search module\n"
+        "- Important: this is not Alibaba Cloud Qwen API.\n"
+    )
+
 
 def build_prompt(
     conversation_history,
@@ -47,6 +69,10 @@ def build_prompt(
 
     return (
         "You are a helpful local AI assistant.\n"
+        "You are running inside this user's local Python project, not as a cloud-hosted Qwen API.\n"
+        "When asked about your capabilities, answer from the runtime status below.\n"
+        "Do not claim Alibaba Cloud Qwen API limits unless the user explicitly asks about Alibaba Cloud.\n\n"
+        f"{get_assistant_status_text()}\n"
         "Use the conversation history to understand follow-up questions.\n\n"
         "Use long-term memory when it is relevant.\n"
         "Long-term memory may contain user preferences, project context, and older chat turns.\n"
@@ -73,7 +99,12 @@ def build_prompt(
     )
 
 
-def stream_ollama_response(conversation_history, user_message, memory_context):
+def stream_ollama_response(
+    conversation_history,
+    user_message,
+    memory_context,
+    raw_web_context=None,
+):
     """
     Send the user's message to Ollama and yield text pieces as they arrive.
 
@@ -83,7 +114,8 @@ def stream_ollama_response(conversation_history, user_message, memory_context):
     search_results = search_knowledge_base(user_message)
     indexed_sources = format_indexed_sources()
     knowledge_text = format_search_results(search_results)
-    raw_web_context = get_web_context(user_message)
+    if raw_web_context is None:
+        raw_web_context = get_web_context(user_message)
     web_context = {
         "sources": format_web_sources(raw_web_context["sources"]),
         "text": raw_web_context["text"],

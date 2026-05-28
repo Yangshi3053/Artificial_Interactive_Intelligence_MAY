@@ -1,7 +1,7 @@
 import re
 from html import unescape
 from html.parser import HTMLParser
-from urllib.parse import quote_plus, unquote, urlparse, parse_qs
+from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 import requests
 
@@ -43,8 +43,8 @@ class SimpleHTMLTextParser(HTMLParser):
     """
     Convert HTML into readable text.
 
-    This is intentionally basic so beginners can understand it. It removes
-    scripts/styles and keeps normal page text.
+    This intentionally stays simple: it removes script-like sections and keeps
+    normal page text.
     """
 
     def __init__(self):
@@ -74,13 +74,7 @@ class SimpleHTMLTextParser(HTMLParser):
 
 
 def needs_web_search(question):
-    """
-    Decide whether a question probably needs live web information.
-
-    This is a simple rule-based decision. It avoids calling the internet for
-    normal questions, but uses web search for current or explicitly requested
-    information.
-    """
+    """Return True when a question probably needs live web information."""
     lower_question = question.lower()
 
     if lower_question.startswith("web:") or lower_question.startswith("search:"):
@@ -119,23 +113,18 @@ def search_web(question):
     """Search DuckDuckGo's HTML page and return result titles and URLs."""
     query = clean_query(question)
     url = SEARCH_URL + quote_plus(query)
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; LocalQwenAssistant/1.0)",
-    }
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; LocalQwenAssistant/1.0)"}
 
     response = requests.get(url, headers=headers, timeout=15)
     response.raise_for_status()
 
-    html = response.text
     pattern = re.compile(
         r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
         re.IGNORECASE | re.DOTALL,
     )
-
     results = []
 
-    for match in pattern.finditer(html):
+    for match in pattern.finditer(response.text):
         raw_url = unescape(match.group(1))
         title_html = match.group(2)
         title = re.sub(r"<.*?>", "", title_html)
@@ -153,17 +142,13 @@ def search_web(question):
 
 def fetch_page_text(url):
     """Download one web page and return readable text."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; LocalQwenAssistant/1.0)",
-    }
-
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; LocalQwenAssistant/1.0)"}
     response = requests.get(url, headers=headers, timeout=20)
     response.raise_for_status()
 
     parser = SimpleHTMLTextParser()
     parser.feed(response.text)
-    text = parser.get_text()
-    text = " ".join(text.split())
+    text = " ".join(parser.get_text().split())
 
     return text[:MAX_PAGE_CHARACTERS]
 
@@ -172,8 +157,10 @@ def get_web_context(question):
     """
     Search the web and fetch readable text from the top results.
 
-    Returns a dictionary so the model code can include both page excerpts and
-    source links in the prompt.
+    Returns a dictionary with:
+    - used: whether web search was attempted
+    - sources: source title and URL list
+    - text: webpage excerpts or an error message
     """
     if not needs_web_search(question):
         return {"used": False, "sources": [], "text": ""}
@@ -226,3 +213,14 @@ def format_web_sources(sources):
         lines.append(f"[{index}] {source['title']} - {source['url']}")
 
     return "\n".join(lines)
+
+
+def format_web_status(web_context):
+    """Format a short web-search status line for the terminal."""
+    if not web_context["used"]:
+        return "Web search: not used"
+
+    if not web_context["sources"]:
+        return "Web search: used, but no sources were found"
+
+    return f"Web search: used, {len(web_context['sources'])} source(s)"

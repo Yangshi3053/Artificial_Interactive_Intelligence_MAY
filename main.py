@@ -9,6 +9,7 @@ from memory.long_term_memory import (
     save_message,
     search_long_term_memory,
 )
+from online_search.web_search import format_web_status, get_web_context
 
 
 def main():
@@ -56,16 +57,24 @@ def main():
                 print("Please type a message before pressing Enter.\n")
                 continue
 
-            print("AI: ", end="", flush=True)
-
             full_response = ""
             memory_results = search_long_term_memory(user_message)
             memory_context = format_memory_context(memory_results)
+            raw_web_context = get_web_context(user_message)
+
+            print(format_web_status(raw_web_context))
+
+            if raw_web_context["sources"]:
+                for index, source in enumerate(raw_web_context["sources"], start=1):
+                    print(f"[{index}] {source['title']} - {source['url']}")
+
+            print("AI: ", end="", flush=True)
 
             for text_piece in stream_ollama_response(
                 conversation_history,
                 user_message,
                 memory_context,
+                raw_web_context,
             ):
                 full_response += text_piece
                 print(text_piece, end="", flush=True)

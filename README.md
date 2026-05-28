@@ -50,6 +50,7 @@ It does these things:
 - stores searchable long-term memory in a local database
 - searches the local knowledge base before answering
 - searches the web when the question needs current information
+- prints whether web search was used before the AI answer
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
 - lets you type `reindex` to reread local knowledge files
@@ -73,6 +74,7 @@ It does these things:
 - adds relevant long-term memory to the prompt
 - adds relevant local knowledge base results to the prompt
 - adds web search results to the prompt when needed
+- tells the model the real local runtime status so it does not claim cloud API limits
 - calls Ollama's local HTTP API
 - streams text pieces back to `main.py`
 - handles Ollama connection errors and model errors
@@ -100,6 +102,14 @@ Recent conversation history is controlled by:
 ```python
 MAX_HISTORY_CHARACTERS = 12000
 ```
+
+The local Ollama context setting is recorded as:
+
+```python
+OLLAMA_CONTEXT_TOKENS = 32768
+```
+
+This is project runtime information, not the Alibaba Cloud Qwen API limit.
 
 ### memory/long_term_memory.py
 
@@ -315,6 +325,15 @@ The assistant usually answers directly from the local model and local knowledge 
 
 If your question looks like it needs current web information, the program searches the web first.
 
+Before the answer, the terminal prints one of these:
+
+```text
+Web search: not used
+Web search: used, 3 source(s)
+```
+
+When web search is used, the terminal also prints the source titles and URLs.
+
 Examples that trigger web search:
 
 ```text
@@ -333,6 +352,8 @@ The model receives:
 When it uses web information, it should mention source numbers like `[1]` or `[2]`.
 
 If there is no internet connection or the web page blocks reading, the assistant will say live web information was not available.
+
+The model is also told that web search is an external Python tool in this local project. It should not claim that it cannot search the web when sources have been provided by the program.
 
 ## How Memory Works
 
