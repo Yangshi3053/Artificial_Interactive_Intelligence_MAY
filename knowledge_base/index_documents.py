@@ -1,12 +1,14 @@
 import json
 from pathlib import Path
 
+from pypdf import PdfReader
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCUMENTS_FOLDER = PROJECT_ROOT / "knowledge_base" / "documents"
 INDEX_FILE = PROJECT_ROOT / "knowledge_base" / "index.json"
 
-SUPPORTED_FILE_TYPES = [".txt", ".md"]
+SUPPORTED_FILE_TYPES = [".txt", ".md", ".pdf"]
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
 
@@ -22,6 +24,33 @@ def read_text_file(file_path):
             continue
 
     return file_path.read_text(encoding="utf-8", errors="ignore")
+
+
+def read_pdf_file(file_path):
+    """
+    Read text from a PDF file.
+
+    This works best for PDFs that already contain selectable text. Scanned PDFs
+    are images, so they usually need OCR before Python can read their words.
+    """
+    reader = PdfReader(str(file_path))
+    pages = []
+
+    for page_number, page in enumerate(reader.pages, start=1):
+        page_text = page.extract_text() or ""
+
+        if page_text.strip():
+            pages.append(f"[Page {page_number}]\n{page_text}")
+
+    return "\n\n".join(pages)
+
+
+def read_supported_file(file_path):
+    """Choose the correct reader for each supported file type."""
+    if file_path.suffix.lower() == ".pdf":
+        return read_pdf_file(file_path)
+
+    return read_text_file(file_path)
 
 
 def split_into_chunks(text):
@@ -65,7 +94,12 @@ def build_index():
         if file_path.suffix.lower() not in SUPPORTED_FILE_TYPES:
             continue
 
-        text = read_text_file(file_path)
+        try:
+            text = read_supported_file(file_path)
+        except Exception as error:
+            print(f"Could not read {file_path}: {error}")
+            continue
+
         chunks = split_into_chunks(text)
 
         for chunk_number, chunk_text in enumerate(chunks, start=1):

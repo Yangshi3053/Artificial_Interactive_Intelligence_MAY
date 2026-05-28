@@ -1,3 +1,4 @@
 requests
 psutil
 nvidia-ml-py
+pypdf

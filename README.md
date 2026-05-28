@@ -95,11 +95,12 @@ This folder is the local document library for the assistant.
 
 Put files here when you want the model to search them later.
 
-The first version supports:
+The current version supports:
 
 ```text
 .txt
 .md
+.pdf
 ```
 
 ### knowledge_base/index_documents.py
@@ -148,6 +149,7 @@ This file lists the Python packages used by the project:
 requests
 psutil
 nvidia-ml-py
+pypdf
 ```
 
 `requests` talks to Ollama.
@@ -155,6 +157,8 @@ nvidia-ml-py
 `psutil` reads system memory usage.
 
 `nvidia-ml-py` reads NVIDIA GPU usage and GPU memory usage.
+
+`pypdf` reads text from PDF files in the local knowledge base.
 
 ## Setup
 
@@ -176,7 +180,7 @@ Make sure Ollama is running.
 
 ## Add Local Files for the Assistant to Search
 
-Put `.txt` or `.md` files into:
+Put `.txt`, `.md`, or `.pdf` files into:
 
 ```text
 knowledge_base/documents/
@@ -195,6 +199,8 @@ python main.py
 ```
 
 When you ask a question, the program searches the local index first and sends the most relevant text chunks to the model.
+
+PDF support works best when the PDF contains selectable text. If the PDF is scanned pages or images, you may need OCR before the assistant can read the words.
 
 ## Run
 
