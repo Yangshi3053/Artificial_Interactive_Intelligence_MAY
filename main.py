@@ -14,6 +14,10 @@ from online_search.web_search import (
     format_web_status,
     get_web_context,
 )
+from system_context.local_info import (
+    format_local_system_context,
+    get_local_system_context,
+)
 
 
 def main():
@@ -30,6 +34,7 @@ def main():
     print("Type exit, quit, or q to stop.\n")
     print("Type reindex to reread files in knowledge_base/documents.\n")
     print("Type memory to see long-term memory status.\n")
+    print("Type system to see local date, time, region, and location status.\n")
 
     init_database()
     monitor_process = start_monitor_window()
@@ -71,6 +76,12 @@ def main():
 
                 continue
 
+            if user_message.lower() in ["system", "/system"]:
+                system_context = get_local_system_context()
+                print(format_local_system_context(system_context))
+                print()
+                continue
+
             if not user_message:
                 print("Please type a message before pressing Enter.\n")
                 continue
@@ -79,6 +90,7 @@ def main():
             memory_results = search_long_term_memory(user_message)
             memory_context = format_memory_context(memory_results)
             raw_web_context = get_web_context(user_message)
+            local_system_context = format_local_system_context(get_local_system_context())
 
             print(format_web_status(raw_web_context))
 
@@ -100,6 +112,7 @@ def main():
                 user_message,
                 memory_context,
                 raw_web_context,
+                local_system_context,
             ):
                 full_response += text_piece
                 print(text_piece, end="", flush=True)

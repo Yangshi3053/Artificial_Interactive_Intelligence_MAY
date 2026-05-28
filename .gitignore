@@ -51,3 +51,6 @@ knowledge_base/documents/*
 # Local long-term memory
 memory/*.sqlite
 memory/*.sqlite-*
+
+# Local system context cache
+system_context/location_cache.json

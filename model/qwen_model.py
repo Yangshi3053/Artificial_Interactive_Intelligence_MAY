@@ -12,6 +12,10 @@ from online_search.web_search import (
     format_web_sources,
     get_web_context,
 )
+from system_context.local_info import (
+    format_local_system_context,
+    get_local_system_context,
+)
 
 
 # You can change this model name later if you want to use a different model.
@@ -54,6 +58,7 @@ def get_assistant_status_text():
 def build_prompt(
     conversation_history,
     user_message,
+    local_system_context,
     memory_context,
     indexed_sources,
     knowledge_text,
@@ -77,6 +82,9 @@ def build_prompt(
         "When asked about your capabilities, answer from the runtime status below.\n"
         "Do not claim Alibaba Cloud Qwen API limits unless the user explicitly asks about Alibaba Cloud.\n\n"
         f"{get_assistant_status_text()}\n"
+        "Use local computer context for date, time, timezone, region, and approximate location questions.\n"
+        "If location is approximate IP location, clearly say it is not exact GPS.\n\n"
+        f"{local_system_context}\n\n"
         "Use the conversation history to understand follow-up questions.\n\n"
         "Use long-term memory when it is relevant.\n"
         "Long-term memory may contain user preferences, project context, and older chat turns.\n"
@@ -116,6 +124,7 @@ def stream_ollama_response(
     user_message,
     memory_context,
     raw_web_context=None,
+    local_system_context=None,
 ):
     """
     Send the user's message to Ollama and yield text pieces as they arrive.
@@ -128,6 +137,8 @@ def stream_ollama_response(
     knowledge_text = format_search_results(search_results)
     if raw_web_context is None:
         raw_web_context = get_web_context(user_message)
+    if local_system_context is None:
+        local_system_context = format_local_system_context(get_local_system_context())
     web_context = {
         "queries": format_query_variants(raw_web_context["query_variants"]),
         "sources": format_web_sources(raw_web_context["sources"]),
@@ -136,6 +147,7 @@ def stream_ollama_response(
     prompt = build_prompt(
         conversation_history,
         user_message,
+        local_system_context,
         memory_context,
         indexed_sources,
         knowledge_text,

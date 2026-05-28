@@ -24,6 +24,9 @@ Artificial_Interactive_Intelligence_MAY/
 |   |-- __init__.py
 |   |-- long_term_memory.py
 |   `-- README.md
+|-- system_context/
+|   |-- __init__.py
+|   `-- local_info.py
 |-- online_search/
 |   |-- __init__.py
 |   `-- web_search.py
@@ -53,10 +56,12 @@ It does these things:
 - prints whether web search was used before the AI answer
 - ranks web sources with a 1-5 source quality tier system
 - searches in locally relevant languages when useful
+- reads local date, time, timezone, region, and approximate location context
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
 - lets you type `reindex` to reread local knowledge files
 - lets you type `memory` to see long-term memory status
+- lets you type `system` to see local system context
 
 Run the project from this file:
 
@@ -77,6 +82,7 @@ It does these things:
 - adds relevant local knowledge base results to the prompt
 - adds web search results to the prompt when needed
 - tells the model the real local runtime status so it does not claim cloud API limits
+- adds local system context for date, time, timezone, region, and approximate location
 - calls Ollama's local HTTP API
 - streams text pieces back to `main.py`
 - handles Ollama connection errors and model errors
@@ -112,6 +118,21 @@ OLLAMA_CONTEXT_TOKENS = 32768
 ```
 
 This is project runtime information, not the Alibaba Cloud Qwen API limit.
+
+### system_context/local_info.py
+
+This file reads safe local computer context.
+
+It does these things:
+
+- reads the current local date
+- reads the current local time
+- reads the local timezone and UTC offset
+- reads Windows region and culture settings
+- reads basic computer and OS information
+- optionally reads approximate network location from public IP
+
+Important: the location is not true GPS. Most desktop/laptop computers do not expose a GPS chip to Python. The current location method is approximate IP-based location, which can be wrong if you use a VPN, school network, mobile hotspot, or proxy.
 
 ### memory/long_term_memory.py
 
@@ -312,6 +333,14 @@ memory
 
 The memory status includes topic groups, average importance, average confidence, and how often memories have been reused.
 
+You can check local system context by typing:
+
+```text
+system
+```
+
+This shows date, time, timezone, Windows region settings, and approximate IP location if available.
+
 ## How Chat Works
 
 The program sends requests to:
@@ -327,6 +356,33 @@ It uses streaming:
 ```
 
 This lets the terminal show text while the model is still generating.
+
+## How Local System Context Works
+
+Before each answer, the program reads local system context and sends it to the model.
+
+This helps the assistant answer questions like:
+
+```text
+今天几号？
+现在几点？
+我现在大概在哪个时区？
+```
+
+The system context includes:
+
+```text
+local date
+local time
+timezone
+UTC offset
+Windows culture
+Windows home location
+basic OS information
+approximate IP location when available
+```
+
+The approximate location is not exact GPS. It is based on public IP lookup and should be treated as approximate.
 
 ## How Web Search Works
 
