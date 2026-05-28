@@ -20,6 +20,9 @@ Artificial_Interactive_Intelligence_MAY/
 |-- model/
 |   |-- __init__.py
 |   `-- qwen_model.py
+|-- online_search/
+|   |-- __init__.py
+|   `-- web_search.py
 `-- monitor/
     |-- __init__.py
     `-- resource_monitor.py
@@ -41,6 +44,7 @@ It does these things:
 - prints the AI response while it is being generated
 - stores recent conversation history
 - searches the local knowledge base before answering
+- searches the web when the question needs current information
 - exits when you type `exit`, `quit`, or `q`
 - closes the monitor window when the chat program exits
 - lets you type `reindex` to reread local knowledge files
@@ -61,6 +65,7 @@ It does these things:
 - builds the prompt sent to Ollama
 - keeps the recent chat history inside the prompt
 - adds relevant local knowledge base results to the prompt
+- adds web search results to the prompt when needed
 - calls Ollama's local HTTP API
 - streams text pieces back to `main.py`
 - handles Ollama connection errors and model errors
@@ -140,6 +145,29 @@ You can also run the monitor by itself:
 
 ```bash
 python monitor/resource_monitor.py
+```
+
+### online_search/web_search.py
+
+This file contains the simple web search tool.
+
+It does these things:
+
+- decides whether a question probably needs live web information
+- searches the web for current information
+- reads text from the top pages
+- sends source links and excerpts to the model
+
+You can force web search by starting a question with:
+
+```text
+web:
+```
+
+Example:
+
+```text
+web: latest Ollama Qwen model news
 ```
 
 ### requirements.txt
@@ -247,6 +275,31 @@ It uses streaming:
 ```
 
 This lets the terminal show text while the model is still generating.
+
+## How Web Search Works
+
+The assistant usually answers directly from the local model and local knowledge base.
+
+If your question looks like it needs current web information, the program searches the web first.
+
+Examples that trigger web search:
+
+```text
+latest AI news
+today's weather
+search: Qwen3 14B Ollama
+web: current NVIDIA driver
+```
+
+The model receives:
+
+- source links
+- short webpage excerpts
+- your original question
+
+When it uses web information, it should mention source numbers like `[1]` or `[2]`.
+
+If there is no internet connection or the web page blocks reading, the assistant will say live web information was not available.
 
 ## How Memory Works
 

@@ -7,6 +7,7 @@ from knowledge_base.search import (
     format_search_results,
     search_knowledge_base,
 )
+from online_search.web_search import format_web_sources, get_web_context
 
 
 # You can change this model name later if you want to use a different model.
@@ -24,7 +25,13 @@ MAX_RESPONSE_TOKENS = 4096
 MAX_HISTORY_CHARACTERS = 12000
 
 
-def build_prompt(conversation_history, user_message, indexed_sources, knowledge_text):
+def build_prompt(
+    conversation_history,
+    user_message,
+    indexed_sources,
+    knowledge_text,
+    web_context,
+):
     """
     Build one prompt that includes the recent chat history.
 
@@ -49,6 +56,12 @@ def build_prompt(conversation_history, user_message, indexed_sources, knowledge_
         "- If a file is not listed below, say it is not currently indexed.\n\n"
         f"Indexed local files:\n{indexed_sources}\n\n"
         f"Relevant local knowledge excerpts:\n{knowledge_text}\n\n"
+        "Web search rules:\n"
+        "- Use web excerpts only when web search results are provided below.\n"
+        "- When using web information, mention the source numbers like [1] or [2].\n"
+        "- If web search failed, say that live web information was not available.\n\n"
+        f"Web sources:\n{web_context['sources']}\n\n"
+        f"Web excerpts:\n{web_context['text']}\n\n"
         f"Conversation history:\n{history_text}\n\n"
         f"User: {user_message}\n"
         "AI:"
@@ -65,11 +78,17 @@ def stream_ollama_response(conversation_history, user_message):
     search_results = search_knowledge_base(user_message)
     indexed_sources = format_indexed_sources()
     knowledge_text = format_search_results(search_results)
+    raw_web_context = get_web_context(user_message)
+    web_context = {
+        "sources": format_web_sources(raw_web_context["sources"]),
+        "text": raw_web_context["text"],
+    }
     prompt = build_prompt(
         conversation_history,
         user_message,
         indexed_sources,
         knowledge_text,
+        web_context,
     )
 
     request_data = {
