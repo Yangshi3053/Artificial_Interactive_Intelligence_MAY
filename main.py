@@ -51,6 +51,20 @@ def main():
                     f"{stats['memories']} durable memories.\n"
                     f"Database: {stats['database']}\n"
                 )
+
+                if stats["topics"]:
+                    print("Memory topics:")
+
+                    for topic in stats["topics"]:
+                        print(
+                            f"- {topic['topic']}: {topic['count']} memories, "
+                            f"importance {topic['avg_importance']:.2f}, "
+                            f"confidence {topic['avg_confidence']:.2f}, "
+                            f"used {topic['use_count']} times"
+                        )
+
+                    print()
+
                 continue
 
             if not user_message:

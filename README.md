@@ -120,7 +120,10 @@ It does these things:
 - creates a local SQLite database
 - saves chat messages after successful answers
 - extracts durable user preferences and instructions
+- classifies durable memories by topic
+- stores importance, confidence, and usage count for each durable memory
 - searches old memories before each new answer
+- ranks memories with topic matching, importance, confidence, use count, and age decay
 - formats relevant memory for the model prompt
 
 The memory database is stored locally:
@@ -303,6 +306,8 @@ You can check memory status by typing:
 memory
 ```
 
+The memory status includes topic groups, average importance, average confidence, and how often memories have been reused.
+
 ## How Chat Works
 
 The program sends requests to:
@@ -374,6 +379,29 @@ memory/memory.sqlite
 ```
 
 The program saves successful chat turns and extracts durable facts, preferences, and instructions. Before each new answer, it searches this database for relevant memories and sends them to the model.
+
+Durable memories are weighted. Each durable memory has:
+
+```text
+topic
+importance
+confidence
+use_count
+last_used_at
+```
+
+Memory ranking uses:
+
+```text
+keyword relevance
++ topic match
++ importance
++ confidence
++ use count bonus
+- age decay
+```
+
+This helps the assistant prefer high-value memories and avoid stuffing unrelated old chat history into every answer.
 
 Examples of things that can become long-term memory:
 
