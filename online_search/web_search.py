@@ -11,6 +11,7 @@ MAX_SEARCH_RESULTS = 3
 MAX_RESULTS_PER_QUERY = 6
 MAX_QUERY_VARIANTS = 5
 MAX_PAGE_CHARACTERS = 2500
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 # Chinese words are written with Unicode escapes so this file stays ASCII-safe.
 WEB_SEARCH_KEYWORDS = [
@@ -21,6 +22,8 @@ WEB_SEARCH_KEYWORDS = [
     "news",
     "price",
     "weather",
+    "forecast",
+    "tomorrow",
     "release",
     "update",
     "search",
@@ -35,6 +38,7 @@ WEB_SEARCH_KEYWORDS = [
     "\u65b0\u95fb",  # news
     "\u4ef7\u683c",  # price
     "\u5929\u6c14",  # weather
+    "\u660e\u5929",  # tomorrow
     "\u8054\u7f51",  # web access
     "\u4e0a\u7f51",  # go online
     "\u7f51\u4e0a",  # online
@@ -50,6 +54,7 @@ WEB_SEARCH_KEYWORDS = [
 OFFICIAL_DOMAINS = [
     ".gc.ca",
     ".gov",
+    ".gov.cn",
     ".gov.ca",
     ".gov.uk",
     ".edu",
@@ -65,9 +70,16 @@ OFFICIAL_DOMAINS = [
     "openai.com",
     "eia.gov",
     "iea.org",
+    "weather.gc.ca",
+    "meteo.gc.ca",
+    "weather.gov",
+    "hko.gov.hk",
 ]
 
 AUTHORITY_DOMAINS = [
+    "open-meteo.com",
+    "worldweather.wmo.int",
+    "wmo.int",
     "tradingeconomics.com",
     "globalpetrolprices.com",
     "oilprice.cc",
@@ -115,6 +127,8 @@ COUNTRY_ALIASES = {
 
 ENGLISH_QUERY_REPLACEMENTS = [
     ("\u4eca\u5929", "today"),
+    ("\u660e\u5929", "tomorrow"),
+    ("\u540e\u5929", "the day after tomorrow"),
     ("\u73b0\u5728", "current"),
     ("\u6700\u65b0", "latest"),
     ("\u5168\u7403", "global"),
@@ -132,6 +146,8 @@ ENGLISH_QUERY_REPLACEMENTS = [
     ("\u6c7d\u6cb9", "gasoline"),
     ("\u71c3\u6cb9", "fuel"),
     ("\u5929\u6c14", "weather"),
+    ("\u5929\u6c14\u9884\u62a5", "weather forecast"),
+    ("\u9884\u62a5", "forecast"),
     ("\u65b0\u95fb", "news"),
     ("\u4ef7\u683c", "price"),
     ("\u5b98\u65b9\u6587\u6863", "official documentation"),
@@ -305,6 +321,75 @@ def build_english_query_text(question):
     return query.strip()
 
 
+def is_weather_question(question):
+    """Return True for weather and forecast questions."""
+    lower_question = question.lower()
+    weather_terms = [
+        "weather",
+        "forecast",
+        "temperature",
+        "rain",
+        "snow",
+        "\u5929\u6c14",
+        "\u5929\u6c23",
+        "\u9884\u62a5",
+        "\u9810\u5831",
+        "\u964d\u96e8",
+        "\u4e0b\u96e8",
+        "\u4e0b\u96ea",
+    ]
+
+    return any(term in lower_question for term in weather_terms)
+
+
+def get_location_hint(local_system_context=None):
+    """Build a readable location hint from local system context."""
+    if not local_system_context:
+        return ""
+
+    location = local_system_context.get("location", {})
+
+    if not location.get("available"):
+        inferred = infer_weather_location(local_system_context)
+        return inferred.get("name", "")
+
+    parts = [
+        location.get("city"),
+        location.get("region"),
+        location.get("country"),
+    ]
+    return " ".join(part for part in parts if part and part != "unknown")
+
+
+def infer_weather_location(local_system_context=None):
+    """Infer a rough weather location when IP location is unavailable."""
+    if not local_system_context:
+        return {}
+
+    region = local_system_context.get("windows_region", {})
+    computer = local_system_context.get("computer", {})
+    datetime_info = local_system_context.get("datetime", {})
+    culture = (region.get("culture") or "").lower()
+    locale_info = computer.get("locale") or []
+    locale_text = " ".join(str(item).lower() for item in locale_info)
+    timezone_id = (region.get("windows_timezone") or "").lower()
+    timezone_name = (datetime_info.get("timezone_name") or "").lower()
+
+    if (
+        "en-ca" in culture
+        or "english_canada" in locale_text
+        or "canada" in locale_text
+    ) and ("eastern" in timezone_id or "\u4e1c\u90e8" in timezone_name):
+        return {
+            "name": "Toronto Ontario Canada",
+            "latitude": 43.6532,
+            "longitude": -79.3832,
+            "note": "Inferred from Windows Canada locale and Eastern timezone, not exact GPS.",
+        }
+
+    return {}
+
+
 def detect_country(question):
     """Detect common country names in English or Chinese."""
     lower_question = f" {question.lower()} "
@@ -412,7 +497,21 @@ def build_oil_price_query(country, language, base_query):
     return base_query
 
 
-def build_localized_query(question, language):
+def build_weather_query(language, base_query, local_system_context=None):
+    """Build weather queries with local context when the user omits a place."""
+    english_query = build_english_query_text(base_query)
+    location_hint = get_location_hint(local_system_context)
+
+    if language == "en":
+        if location_hint and location_hint.lower() not in english_query.lower():
+            return f"{location_hint} {english_query} official weather forecast"
+
+        return f"{english_query} official weather forecast"
+
+    return base_query
+
+
+def build_localized_query(question, language, local_system_context=None):
     """Build one search query for a target language."""
     base_query = clean_query(question)
     country = detect_country(base_query)
@@ -420,19 +519,22 @@ def build_localized_query(question, language):
     if is_oil_price_question(base_query):
         return build_oil_price_query(country, language, base_query)
 
+    if is_weather_question(base_query):
+        return build_weather_query(language, base_query, local_system_context)
+
     if language == "en":
         return build_english_query_text(base_query)
 
     return base_query
 
 
-def build_query_variants(question):
+def build_query_variants(question, local_system_context=None):
     """Build a short list of multilingual query variants."""
     variants = []
     seen_queries = set()
 
     for language, reason in detect_search_language_plan(question):
-        query = build_localized_query(question, language)
+        query = build_localized_query(question, language, local_system_context)
 
         if query in seen_queries:
             continue
@@ -546,12 +648,12 @@ def result_rank_key(result):
     )
 
 
-def search_web(question):
+def search_web(question, local_system_context=None):
     """Search with multilingual query variants and return ranked sources."""
     all_results = []
     seen_urls = set()
 
-    for query_info in build_query_variants(question):
+    for query_info in build_query_variants(question, local_system_context):
         for result in search_one_query(query_info):
             if result["url"] in seen_urls:
                 continue
@@ -576,6 +678,100 @@ def search_web(question):
     return all_results[:MAX_SEARCH_RESULTS]
 
 
+def get_open_meteo_context(question, local_system_context=None):
+    """Fetch a small structured forecast when local coordinates are available."""
+    if not is_weather_question(question):
+        return None
+
+    if not local_system_context:
+        return None
+
+    location = local_system_context.get("location", {})
+
+    if location.get("available"):
+        latitude = location.get("latitude")
+        longitude = location.get("longitude")
+        location_note = "Location is based on approximate IP location, not exact GPS."
+    else:
+        inferred = infer_weather_location(local_system_context)
+        latitude = inferred.get("latitude")
+        longitude = inferred.get("longitude")
+        location_note = inferred.get("note", "Location is not exact GPS.")
+
+    if latitude is None or longitude is None:
+        return None
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "daily": ",".join(
+            [
+                "temperature_2m_max",
+                "temperature_2m_min",
+                "precipitation_probability_max",
+                "precipitation_sum",
+                "weather_code",
+            ]
+        ),
+        "timezone": "auto",
+        "forecast_days": 3,
+    }
+
+    response = requests.get(OPEN_METEO_URL, params=params, timeout=15)
+    response.raise_for_status()
+    data = response.json()
+    daily = data.get("daily", {})
+    times = daily.get("time", [])
+
+    if not times:
+        return None
+
+    target_index = 1 if "\u660e\u5929" in question or "tomorrow" in question.lower() else 0
+    target_index = min(target_index, len(times) - 1)
+    place = get_location_hint(local_system_context) or "local approximate location"
+    units = data.get("daily_units", {})
+
+    def daily_value(name):
+        values = daily.get(name, [])
+        if target_index >= len(values):
+            return "unknown"
+        return values[target_index]
+
+    lines = [
+        f"Structured local weather forecast for {place}.",
+        f"Date: {times[target_index]}",
+        f"Max temperature: {daily_value('temperature_2m_max')} {units.get('temperature_2m_max', '')}",
+        f"Min temperature: {daily_value('temperature_2m_min')} {units.get('temperature_2m_min', '')}",
+        f"Max precipitation probability: {daily_value('precipitation_probability_max')} {units.get('precipitation_probability_max', '')}",
+        f"Precipitation total: {daily_value('precipitation_sum')} {units.get('precipitation_sum', '')}",
+        f"Weather code: {daily_value('weather_code')}",
+        location_note,
+    ]
+
+    source = {
+        "title": "Open-Meteo forecast API",
+        "url": "https://open-meteo.com/",
+        "domain": "open-meteo.com",
+        "tier": 2,
+        "tier_reason": "authoritative weather API",
+        "query": "Open-Meteo local forecast API",
+        "language": "en",
+        "query_reason": "Structured fallback for local weather forecast",
+        "search_position": 0,
+    }
+
+    text = (
+        f"Source: {source['title']}\n"
+        f"URL: {source['url']}\n"
+        f"Source tier: {source['tier']} ({source['tier_reason']})\n"
+        "Search language: en\n"
+        "Search query: Open-Meteo local forecast API\n"
+        f"Excerpt: {' '.join(lines)}"
+    )
+
+    return source, text
+
+
 def fetch_page_text(url):
     """Download one web page and return readable text."""
     headers = {"User-Agent": "Mozilla/5.0 (compatible; LocalQwenAssistant/1.0)"}
@@ -589,15 +785,15 @@ def fetch_page_text(url):
     return text[:MAX_PAGE_CHARACTERS]
 
 
-def get_web_context(question):
+def get_web_context(question, local_system_context=None):
     """Search the web and fetch readable text from the top ranked results."""
     if not needs_web_search(question):
         return {"used": False, "query_variants": [], "sources": [], "text": ""}
 
-    query_variants = build_query_variants(question)
+    query_variants = build_query_variants(question, local_system_context)
 
     try:
-        results = search_web(question)
+        results = search_web(question, local_system_context)
     except requests.exceptions.RequestException as error:
         return {
             "used": True,
@@ -609,7 +805,20 @@ def get_web_context(question):
     sources = []
     text_parts = []
 
+    try:
+        weather_context = get_open_meteo_context(question, local_system_context)
+    except requests.exceptions.RequestException:
+        weather_context = None
+
+    if weather_context:
+        weather_source, weather_text = weather_context
+        sources.append(weather_source)
+        text_parts.append(weather_text)
+
     for result in results:
+        if any(source["url"] == result["url"] for source in sources):
+            continue
+
         try:
             page_text = fetch_page_text(result["url"])
         except requests.exceptions.RequestException:

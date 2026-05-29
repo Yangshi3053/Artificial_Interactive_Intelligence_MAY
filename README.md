@@ -619,6 +619,8 @@ If there is no internet connection or the web page blocks reading, the assistant
 
 The model is also told that web search is an external Python tool in this local project. It should not claim that it cannot search the web when sources have been provided by the program.
 
+For weather questions, the assistant now uses an English-first local forecast query. If IP location is unavailable, it can infer a rough weather location from Windows region and timezone settings, then clearly marks that location as approximate rather than exact GPS. It also adds structured forecast data when available so the model has actual temperature and precipitation values to answer from.
+
 ## How Memory Works
 
 Ollama's `/api/generate` endpoint does not automatically remember previous messages from this Python program.

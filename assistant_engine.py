@@ -206,11 +206,12 @@ class AssistantEngine:
         memory_results = search_long_term_memory(user_message)
         memory_context = format_memory_context(memory_results)
 
-        debug_log("Collecting web context")
-        raw_web_context = get_web_context(user_message)
-
         debug_log("Collecting local system context")
-        local_system_context = format_local_system_context(get_local_system_context())
+        local_system_data = get_local_system_context()
+        local_system_context = format_local_system_context(local_system_data)
+
+        debug_log("Collecting web context")
+        raw_web_context = get_web_context(user_message, local_system_data)
 
         self.print_web_status(raw_web_context)
 
