@@ -26,11 +26,26 @@ DEBUG_ENABLED = os.environ.get("LOCAL_AI_DEBUG", "").lower() in ["1", "true", "y
 # Start the official CosyVoice FastAPI server separately, then set
 # LOCAL_AI_TTS=1 or type "voice on" in the chat program.
 COSYVOICE_AUTO_SPEAK = os.environ.get("LOCAL_AI_TTS", "").lower() in ["1", "true", "yes"]
-COSYVOICE_URL = os.environ.get(
-    "COSYVOICE_URL",
-    "http://localhost:50000/inference_sft",
+COSYVOICE_BASE_URL = os.environ.get("COSYVOICE_BASE_URL", "http://localhost:50000")
+COSYVOICE_SFT_URL = os.environ.get(
+    "COSYVOICE_SFT_URL",
+    f"{COSYVOICE_BASE_URL}/inference_sft",
 )
+COSYVOICE_ZERO_SHOT_URL = os.environ.get(
+    "COSYVOICE_ZERO_SHOT_URL",
+    f"{COSYVOICE_BASE_URL}/inference_zero_shot",
+)
+COSYVOICE_MODE = os.environ.get("COSYVOICE_MODE", "zero_shot").lower()
 COSYVOICE_SPK_ID = os.environ.get("COSYVOICE_SPK_ID", "\u4e2d\u6587\u5973")
+COSYVOICE_PROMPT_WAV = os.environ.get(
+    "COSYVOICE_PROMPT_WAV",
+    "voice_samples/my_voice.wav",
+)
+COSYVOICE_PROMPT_TEXT_FILE = os.environ.get(
+    "COSYVOICE_PROMPT_TEXT_FILE",
+    "voice_samples/my_voice_prompt.txt",
+)
+COSYVOICE_PROMPT_TEXT = os.environ.get("COSYVOICE_PROMPT_TEXT", "")
 COSYVOICE_SAMPLE_RATE = int(os.environ.get("COSYVOICE_SAMPLE_RATE", "22050"))
 COSYVOICE_MAX_TEXT_CHARACTERS = int(
     os.environ.get("COSYVOICE_MAX_TEXT_CHARACTERS", "800")

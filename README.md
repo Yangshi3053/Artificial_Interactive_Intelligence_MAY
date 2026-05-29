@@ -36,6 +36,8 @@ Artificial_Interactive_Intelligence_MAY/
 |   |-- __init__.py
 |   |-- audio_player.py
 |   `-- cosyvoice_client.py
+|-- voice_samples/
+|   `-- README.md
 |-- utils/
 |   |-- __init__.py
 |   `-- debug.py
@@ -179,13 +181,27 @@ It does these things:
 The default CosyVoice URL is:
 
 ```python
-COSYVOICE_URL = "http://localhost:50000/inference_sft"
+COSYVOICE_SFT_URL = "http://localhost:50000/inference_sft"
+COSYVOICE_ZERO_SHOT_URL = "http://localhost:50000/inference_zero_shot"
 ```
 
 The default speaker is:
 
 ```python
 COSYVOICE_SPK_ID = "中文女"
+```
+
+The default voice mode is:
+
+```python
+COSYVOICE_MODE = "zero_shot"
+```
+
+Zero-shot mode uses your local prompt sample:
+
+```text
+voice_samples/my_voice.wav
+voice_samples/my_voice_prompt.txt
 ```
 
 Generated voice files are saved in:
@@ -372,19 +388,29 @@ Official CosyVoice uses a FastAPI server. A typical CosyVoice server command is:
 
 ```bash
 cd CosyVoice/runtime/python/fastapi
-python server.py --port 50000 --model_dir iic/CosyVoice-300M-SFT
+python server.py --port 50000 --model_dir iic/CosyVoice-300M
 ```
 
 This project calls:
 
 ```text
-http://localhost:50000/inference_sft
+http://localhost:50000/inference_zero_shot
 ```
 
 You can change the server URL or speaker with environment variables:
 
 ```powershell
-$env:COSYVOICE_URL='http://localhost:50000/inference_sft'
+$env:COSYVOICE_MODE='zero_shot'
+$env:COSYVOICE_ZERO_SHOT_URL='http://localhost:50000/inference_zero_shot'
+$env:COSYVOICE_PROMPT_WAV='voice_samples/my_voice.wav'
+$env:COSYVOICE_PROMPT_TEXT_FILE='voice_samples/my_voice_prompt.txt'
+```
+
+If you want to use the built-in SFT speaker instead of your sample voice:
+
+```powershell
+$env:COSYVOICE_MODE='sft'
+$env:COSYVOICE_SFT_URL='http://localhost:50000/inference_sft'
 $env:COSYVOICE_SPK_ID='中文女'
 ```
 

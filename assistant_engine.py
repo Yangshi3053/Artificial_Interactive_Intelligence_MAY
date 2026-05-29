@@ -1,8 +1,12 @@
 from app_config import (
     COSYVOICE_AUTO_SPEAK,
+    COSYVOICE_MODE,
+    COSYVOICE_PROMPT_TEXT_FILE,
+    COSYVOICE_PROMPT_WAV,
     COSYVOICE_SAMPLE_RATE,
     COSYVOICE_SPK_ID,
-    COSYVOICE_URL,
+    COSYVOICE_SFT_URL,
+    COSYVOICE_ZERO_SHOT_URL,
     EXIT_COMMANDS,
     MEMORY_COMMANDS,
     MODEL_NAME,
@@ -156,8 +160,12 @@ class AssistantEngine:
         """Print current CosyVoice text-to-speech settings."""
         state = "on" if self.voice_enabled else "off"
         print(f"CosyVoice speech: {state}")
-        print(f"CosyVoice URL: {COSYVOICE_URL}")
+        print(f"CosyVoice mode: {COSYVOICE_MODE}")
+        print(f"SFT URL: {COSYVOICE_SFT_URL}")
+        print(f"Zero-shot URL: {COSYVOICE_ZERO_SHOT_URL}")
         print(f"Speaker ID: {COSYVOICE_SPK_ID}")
+        print(f"Prompt wav: {COSYVOICE_PROMPT_WAV}")
+        print(f"Prompt text file: {COSYVOICE_PROMPT_TEXT_FILE}")
         print(f"Sample rate: {COSYVOICE_SAMPLE_RATE} Hz\n")
 
     def extract_speak_command(self, user_message):
