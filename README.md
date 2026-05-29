@@ -384,6 +384,18 @@ Make sure Ollama is running.
 
 CosyVoice is not installed inside this project. Run it as a separate local service, then this assistant can call it.
 
+If I installed CosyVoice for you, start it from this project with:
+
+```powershell
+.\scripts\start_cosyvoice.ps1
+```
+
+This starts the server on:
+
+```text
+http://localhost:50000
+```
+
 Official CosyVoice uses a FastAPI server. A typical CosyVoice server command is:
 
 ```bash
